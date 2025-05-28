@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <string.h>
 #include "pico/stdlib.h"
 #include "pico/time.h"
 #include "hardware/gpio.h"
@@ -8,6 +9,7 @@
 #include "LSM9DS1.h"
 
 #define LED_PIN 25  // LED integrado de la Pico
+#define BUFFER_SIZE 32
 
 /**
  * @brief Hace parpadear el LED un número específico de veces
@@ -36,7 +38,33 @@ bool cerrar_archivo(FIL* fil);
  */
 bool escribir_LSM9DS1(FIL* fil, float accel[3], float gyro[3], float mag[3], uint64_t time);
 
+/**
+ * @brief Interrupcion que se lanza cada 10 ms para leer sensores
+ */
+bool capturar10ms(__unused struct repeating_timer *t);
+
+// Tarjeta SD
 extern sd_card_t sd_card;
+
+// Matrices de datos para almacenar informacion
+float accel[3], gyro[3], mag[3];
+// Variables para medir el tiempo del sensor
+absolute_time_t start_time;  // Tiempo de inicio de mediciones
+absolute_time_t now;         // Tiempo actual
+int64_t elapsed_ms;          // Tiempo actual menos tiempo inicial
+
+LSM9DS1 imu;                 // Sensor de mediciones
+/*
+Este buffer se usa con el proposito de guardar mediciones
+al hacer lecturas para despues escribirlas en el archivo
+*/ 
+LSM9DS1Data lecturaLSM[BUFFER_SIZE];   // Buffer para los datos de la IMU
+
+// Variables para el manejo del buffer 
+volatile uint8_t buffer_head = 0;  // Índice de escritura (interrupción)
+volatile uint8_t buffer_tail = 0;  // Índice de lectura (loop principal)
+volatile bool buffer_full = false; // Bandera de buffer lleno
+    
 
 int main() {
     // Inicialización del LED
@@ -64,12 +92,11 @@ int main() {
     }
     //=========================================================================================================================
     // Puntero al archivo
-    FIL fil;
+    FIL file1;
     // Nombre del archivo
-    const char* const filename = "filename.txt";
+    const char* const filename = "LSM9DS1.txt";
 
     //===================================Inicializacion imu===================================
-    LSM9DS1 imu;
     // Inicializar sensores con parámetros personalizados
     imu.init_accel(LSM9DS1::SCALE_GYRO_500DPS, LSM9DS1::SCALE_ACCEL_4G, 
                   LSM9DS1::ODR_119HZ, LSM9DS1::ODR_119HZ);
@@ -77,17 +104,18 @@ int main() {
 
     printf("Sensor LSM9DS1 inicializado correctamente.\n");
     
-    // Matrices de datos
-    float accel[3], gyro[3], mag[3];
-    //==========================================================================================
-    // Variables para medicion de tiempo
-    absolute_time_t start_time = get_absolute_time();
-    absolute_time_t now;
-    int64_t elapsed_ms;
+    // Interrupcion para leer los sensores cada 10 ms
+    struct repeating_timer timer;
+    add_repeating_timer_ms(10, capturar10ms, NULL, &timer);
+
+    // Variable auxiliar para guardar los datos a escribir desde el buffer
+    LSM9DS1Data current_data;
     
-    // TODO: Pasar esto a una interrupcion
+    // Empezamos a medir el tiempo
+    start_time = get_absolute_time();
+
     while(1) {
-        // TODO: Reintentar el montaje de la SD cada X tiempo por un par de intentos
+        // // TODO: Reintentar el montaje de la SD cada X tiempo por un par de intentos
         if (sd_card.sd_test_com && !sd_card.sd_test_com(&sd_card)) {
             printf("La tarjeta SD fue retirada, desmontando...\n");
             // Desmonta el sistema de archivos
@@ -98,25 +126,32 @@ int main() {
                 sleep_ms(1000);
             }
         }
-        now = get_absolute_time();
-        elapsed_ms = absolute_time_diff_us(start_time, now) / 1000;
-        imu.read_accelerometer(accel);
-        imu.read_gyroscope(gyro);
-        imu.read_magnetometer(mag);
-        if (!abrir_archivo(&fil, filename)) {
-            while (1); // Error manejado dentro de la función
+
+        // Se verifica si el buffer tiene informacion por leer
+        if (buffer_tail != buffer_head || buffer_full) {
+            // Extrae datos del buffer (con interrupciones desactivadas)
+            uint32_t save = save_and_disable_interrupts();
+            current_data = lecturaLSM[buffer_tail];
+            buffer_tail = (buffer_tail + 1) % BUFFER_SIZE;
+            buffer_full = false;
+            restore_interrupts(save);
+
+            // Escribe en SD (fuera de la interrupción)
+            if (!abrir_archivo(&file1, filename)) {
+                while (1);  // Manejo de error
+            }
+            if (!escribir_LSM9DS1(&file1, current_data.accel, current_data.gyro, 
+                                 current_data.mag, current_data.elapsed_ms)) {
+                while (1);  // Manejo de error
+            }
+            if (!cerrar_archivo(&file1)) {
+                while (1);  // Manejo de error
+            }
+            // printf("[%.2f,%.2f,%.2f][%.2f,%.2f,%.2f][%.2f,%.2f,%.2f] @  %lld ms\n",
+            // current_data.accel[0], current_data.accel[1], current_data.accel[2],
+            // current_data.gyro[0], current_data.gyro[1], current_data.gyro[2],
+            // current_data.mag[0], current_data.mag[1], current_data.mag[2], current_data.elapsed_ms);
         }
-        if(!escribir_LSM9DS1(&fil, accel, gyro, mag, elapsed_ms)){
-            while (1); // Error manejado dentro de la función
-        }
-        if (!cerrar_archivo(&fil)) {
-            while (1); // Error manejado dentro de la función
-        }
-        // printf("[%.2f,%.2f,%.2f][%.2f,%.2f,%.2f][%.2f,%.2f,%.2f] @  %lld ms\n",
-        // accel[0], accel[1], accel[2],
-        // gyro[0], gyro[1], gyro[2],
-        // mag[0], mag[1], mag[2], elapsed_ms);
-        sleep_ms(10);
     }
 }
 
@@ -161,5 +196,30 @@ bool escribir_LSM9DS1(FIL* fil, float accel[3], float gyro[3], float mag[3], uin
         blink_led(6, 200); // Error de escritura
         return false;
     }
+    return true;
+}
+
+
+bool capturar10ms(__unused repeating_timer *t)
+{
+    // Se calcula el tiempo que ha pasado
+    now = get_absolute_time();
+    elapsed_ms = absolute_time_diff_us(start_time, now) / 1000;
+    // Se leen los datos del sensor
+    imu.read_accelerometer(accel);
+    imu.read_gyroscope(gyro);
+    imu.read_magnetometer(mag);
+    if (buffer_full) {
+        return true;  // Buffer lleno, descarta datos o maneja error
+    }
+    // Se guardan los datos del sensor
+    uint32_t save = save_and_disable_interrupts();
+    lecturaLSM[buffer_head] = (LSM9DS1Data){ .accel = {accel[0], accel[1], accel[2]},
+                                             .gyro = {gyro[0], gyro[1], gyro[2]},
+                                             .mag = {mag[0], mag[1], mag[2]},
+                                             .elapsed_ms = elapsed_ms };
+    buffer_head = (buffer_head + 1) % BUFFER_SIZE;
+    buffer_full = (buffer_head == buffer_tail);
+    restore_interrupts(save);
     return true;
 }
