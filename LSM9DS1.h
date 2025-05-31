@@ -110,6 +110,8 @@ public:
      */
     void read_magnetometer(float mag[3]);
 
+    void calibrate_magnetometer(float offset_x, float offset_y, float offset_z);
+
 private:
     // Direcciones I2C
     static constexpr uint8_t AG_ADDR = 0x6B;  // Acelerómetro/Giroscopio
@@ -134,7 +136,12 @@ private:
     static constexpr uint8_t CTRL_REG5_M = 0x24;
     static constexpr uint8_t OUT_X_L_M = 0x28;
     static constexpr uint8_t FIFO_CTRL_REG = 0x2E;
-
+    static constexpr uint8_t OFFSET_X_REG_L_M = 0x05;
+    static constexpr uint8_t OFFSET_X_REG_H_M = 0x06;
+    static constexpr uint8_t OFFSET_Y_REG_L_M = 0x07;
+    static constexpr uint8_t OFFSET_Y_REG_H_M = 0x08;
+    static constexpr uint8_t OFFSET_Z_REG_L_M = 0x09;
+    static constexpr uint8_t OFFSET_Z_REG_H_M = 0x0A;
 
     i2c_inst_t* i2c_port_;
     uint sda_pin_;

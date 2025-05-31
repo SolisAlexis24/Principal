@@ -101,6 +101,7 @@ int main() {
     imu.init_accel(LSM9DS1::SCALE_GYRO_500DPS, LSM9DS1::SCALE_ACCEL_4G, 
                   LSM9DS1::ODR_119HZ, LSM9DS1::ODR_119HZ);
     imu.init_magnetometer(LSM9DS1::MAG_SCALE_4GAUSS, LSM9DS1::MAG_ODR_80HZ);
+    imu.calibrate_magnetometer(0.15f, 0.08f, -0.47f);
 
     printf("Sensor LSM9DS1 inicializado correctamente.\n");
     

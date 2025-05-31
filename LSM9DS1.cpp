@@ -143,10 +143,10 @@ void LSM9DS1::read_gyroscope(float gyro[3]) {
     int16_t x = (buf[1] << 8) | buf[0];
     int16_t y = (buf[3] << 8) | buf[2];
     int16_t z = (buf[5] << 8) | buf[4];
-    
-    gyro[0] = x * gyro_scale_factor_;
-    gyro[1] = y * gyro_scale_factor_;
-    gyro[2] = z * gyro_scale_factor_;
+    // Valores de offset hardcodeados para que las mediciones sean más exactas
+    gyro[0] = x * gyro_scale_factor_ + 0.2673;
+    gyro[1] = y * gyro_scale_factor_ - 0.5627;
+    gyro[2] = z * gyro_scale_factor_ - 0.8419;
 }
 
 /**
@@ -165,6 +165,26 @@ void LSM9DS1::read_magnetometer(float mag[3]) {
     mag[0] = x * mag_scale_factor_;
     mag[1] = y * mag_scale_factor_;
     mag[2] = z * mag_scale_factor_;
+}
+
+void LSM9DS1::calibrate_magnetometer(float offset_x, float offset_y, float offset_z){
+    int16_t x = offset_x/mag_scale_factor_;
+    int16_t y = offset_y/mag_scale_factor_;
+    int16_t z = offset_z/mag_scale_factor_;
+    uint8_t buf[6] = {
+        static_cast<uint8_t>(x & 0xFF),   // LSB X
+        static_cast<uint8_t>(x >> 8),     // MSB X
+        static_cast<uint8_t>(y & 0xFF),   // LSB Y
+        static_cast<uint8_t>(y >> 8),     // MSB Y
+        static_cast<uint8_t>(z & 0xFF),   // LSB Z
+        static_cast<uint8_t>(z >> 8)      // MSB Z
+    };
+    write_register(M_ADDR, OFFSET_X_REG_L_M ,buf[0]);
+    write_register(M_ADDR, OFFSET_X_REG_H_M ,buf[1]);
+    write_register(M_ADDR, OFFSET_Y_REG_L_M ,buf[2]);
+    write_register(M_ADDR, OFFSET_Y_REG_H_M ,buf[3]);
+    write_register(M_ADDR, OFFSET_Z_REG_L_M ,buf[4]);
+    write_register(M_ADDR, OFFSET_Z_REG_H_M ,buf[5]);
 }
 
 /**
