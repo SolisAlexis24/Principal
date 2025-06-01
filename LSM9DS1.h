@@ -110,7 +110,17 @@ public:
      */
     void read_magnetometer(float mag[3]);
 
+    /**
+     * @brief Configura un offset al magnetometro sobre cada eje para corregir mediciones dispares en ejes
+     * @param offset_i offset en Gauss que se restara a los valores del magnetometro en cada eje
+     */
     void calibrate_magnetometer(float offset_x, float offset_y, float offset_z);
+
+        /**
+     * @brief Configura un offset al giroscopio sobre cada eje para corregir mediciones dispares en ejes
+     * @param offset_i offset en grad que se restara a los valores del giroscopio en cada eje
+     */
+    void calibrate_gyro(float offset_x, float offset_y, float offset_z);
 
 private:
     // Direcciones I2C
@@ -151,6 +161,9 @@ private:
     float gyro_scale_factor_;
     float accel_scale_factor_;
     float mag_scale_factor_;
+    float gyro_offset_x_;
+    float gyro_offset_y_;
+    float gyro_offset_z_;
 
     /**
      * @brief Lee un registro del sensor
