@@ -4,12 +4,16 @@
 #include "pico/time.h"
 #include "hardware/gpio.h"
 #include "hw_config.h"
+#include "hardware/i2c.h"
 #include "f_util.h"
 #include "ff.h"
 #include "LSM9DS1.h"
 
 #define LED_PIN 25  // LED integrado de la Pico
 #define BUFFER_SIZE 32
+#define SDA_PIN 16
+#define SCL_PIN 17
+#define I2C_FREC 400000
 
 /**
  * @brief Hace parpadear el LED un número específico de veces
@@ -43,6 +47,9 @@ bool escribir_LSM9DS1(FIL* fil, float accel[3], float gyro[3], float mag[3], uin
  */
 bool capturar10ms(__unused struct repeating_timer *t);
 
+
+i2c_inst_t* i2c_port = i2c0;
+
 // Tarjeta SD
 extern sd_card_t sd_card;
 
@@ -53,7 +60,7 @@ absolute_time_t start_time;  // Tiempo de inicio de mediciones
 absolute_time_t now;         // Tiempo actual
 int64_t elapsed_ms;          // Tiempo actual menos tiempo inicial
 
-LSM9DS1 imu;                 // Sensor de mediciones
+LSM9DS1 imu(i2c_port,SDA_PIN, SCL_PIN, I2C_FREC);                 // Sensor de mediciones
 /*
 Este buffer se usa con el proposito de guardar mediciones
 al hacer lecturas para despues escribirlas en el archivo
@@ -78,6 +85,13 @@ int main() {
             sleep_ms(1000);
         }
     }
+
+    // Inicializar hardware I2C
+    i2c_init(i2c_port, 400000);
+    gpio_set_function(SDA_PIN, GPIO_FUNC_I2C);
+    gpio_set_function(SCL_PIN, GPIO_FUNC_I2C);
+    gpio_pull_up(SDA_PIN);
+    gpio_pull_up(SCL_PIN);
 
     //=============================================Montaje del sistema de archivos=============================================
     FATFS fs;

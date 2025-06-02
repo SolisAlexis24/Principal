@@ -65,7 +65,7 @@ public:
      * @param scl_pin Pin SCL (por defecto GPIO 17)
      * @param i2c_freq Frecuencia I2C (por defecto 400 kHz)
      */
-    LSM9DS1(i2c_inst_t* i2c_port = i2c0, uint sda_pin = 16, uint scl_pin = 17, uint i2c_freq = 400000);
+    LSM9DS1(i2c_inst_t* i2c_port, uint sda_pin, uint scl_pin, uint i2c_freq);
     
     /**
      * @brief Inicializa el acelerómetro y giroscopio

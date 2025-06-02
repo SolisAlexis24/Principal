@@ -13,13 +13,6 @@
 LSM9DS1::LSM9DS1(i2c_inst_t* i2c_port, uint sda_pin, uint scl_pin, uint i2c_freq) 
     : i2c_port_(i2c_port), sda_pin_(sda_pin), scl_pin_(scl_pin), i2c_freq_(i2c_freq),
       gyro_scale_factor_(0), accel_scale_factor_(0), mag_scale_factor_(0) {
-    
-    // Inicializar hardware I2C
-    i2c_init(i2c_port_, i2c_freq_);
-    gpio_set_function(sda_pin_, GPIO_FUNC_I2C);
-    gpio_set_function(scl_pin_, GPIO_FUNC_I2C);
-    gpio_pull_up(sda_pin_);
-    gpio_pull_up(scl_pin_);
 }
 
 /**
