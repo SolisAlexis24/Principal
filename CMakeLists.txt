@@ -37,7 +37,8 @@ pico_sdk_init()
 
 add_executable(Principal Principal.cpp 
                 hw_config.c
-                LSM9DS1.cpp)
+                LSM9DS1.cpp
+                MLX90393.cpp)
 
 pico_set_program_name(Principal "Principal")
 pico_set_program_version(Principal "0.1")

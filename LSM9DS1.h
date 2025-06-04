@@ -122,6 +122,12 @@ public:
      */
     void calibrate_gyro(float offset_x, float offset_y, float offset_z);
 
+    
+    // Variables para el manejo del buffer 
+    volatile uint8_t buffer_head = 0;  // Índice de escritura (interrupción)
+    volatile uint8_t buffer_tail = 0;  // Índice de lectura (loop principal)
+    volatile bool buffer_full = false; // Bandera de buffer lleno
+
 private:
     // Direcciones I2C
     static constexpr uint8_t AG_ADDR = 0x6B;  // Acelerómetro/Giroscopio
