@@ -57,6 +57,13 @@ public:
         MAG_ODR_80HZ = 7
     };
 
+    typedef struct {
+        float accel[3];
+        float gyro[3];
+        float mag[3];
+        int64_t time_ms;
+    } LSM9DS1Data;
+
     /**
      * @brief Constructor que inicializa el sensor con parámetros por defecto
      * 
@@ -94,21 +101,21 @@ public:
      * 
      * @param accel Arreglo de 3 floats donde se almacenarán los datos (X,Y,Z en g)
      */
-    void read_accelerometer(float accel[3]);
+    LSM9DS1Data read_accelerometer();
     
     /**
      * @brief Lee los datos del giroscopio
      * 
      * @param gyro Arreglo de 3 floats donde se almacenarán los datos (X,Y,Z en dps)
      */
-    void read_gyroscope(float gyro[3]);
+    LSM9DS1Data read_gyroscope();
     
     /**
      * @brief Lee los datos del magnetómetro
      * 
      * @param mag Arreglo de 3 floats donde se almacenarán los datos (X,Y,Z en Gauss)
      */
-    void read_magnetometer(float mag[3]);
+    LSM9DS1Data read_magnetometer();
 
     /**
      * @brief Configura un offset al magnetometro sobre cada eje para corregir mediciones dispares en ejes
@@ -122,7 +129,8 @@ public:
      */
     void calibrate_gyro(float offset_x, float offset_y, float offset_z);
 
-    
+    LSM9DS1Data last_measurement;      // Variable que ayuda a guardar los datos de la ultima medicion
+
     // Variables para el manejo del buffer 
     volatile uint8_t buffer_head = 0;  // Índice de escritura (interrupción)
     volatile uint8_t buffer_tail = 0;  // Índice de lectura (loop principal)
@@ -214,10 +222,3 @@ private:
      */
     void calculate_mag_scale_factor(MagScale scale);
 };
-
-typedef struct {
-    float accel[3];
-    float gyro[3];
-    float mag[3];
-    int64_t elapsed_ms;
-} LSM9DS1Data;

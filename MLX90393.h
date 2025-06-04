@@ -121,8 +121,8 @@ public:
     MLX90393Data last_measurement;      // Variable que ayuda a guardar los datos de la ultima medicion
     
     // Estas variables se deben de modificar manualmente por la falta del pin de interrupcion
-    bool is_mag_measurement_ready;  // Variable que indica que la medicion del magnetrometro esta lista
-    bool is_temp_measurement_ready; // Variable que indica que la medicion del termometro esta lista
+    bool is_mag_first_measurement;  // Variable que indica que la medicion del magnetrometro esta lista
+    bool is_temp_first_measurement; // Variable que indica que la medicion del termometro esta lista
 
     // Variables para el manejo del buffer 
     volatile uint8_t buffer_head = 0;  // Índice de escritura (interrupción)

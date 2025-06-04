@@ -41,7 +41,7 @@ bool cerrar_archivo(FIL* fil);
  * @param gyro Informacion acerca del giro
  * @param mag Informacion acerca del magnetometro
  */
-bool escribir_LSM9DS1(FIL* fil, float accel[3], float gyro[3], float mag[3], uint64_t time);
+bool guardar_mediciones_LSM9DS1(FIL* fil, float accel[3], float gyro[3], float mag[3], uint64_t time);
 
 bool guardar_mediciones_MLX90393(FIL* fil, float x, float y, float z, uint64_t time);
 
@@ -56,20 +56,19 @@ i2c_inst_t* i2c_port = i2c0;
 // Tarjeta SD
 extern sd_card_t sd_card;
 
-// Matrices de datos para almacenar informacion
-float accel[3], gyro[3], mag[3];
 // Variables para medir el tiempo del sensor
 absolute_time_t start_time;  // Tiempo de inicio de mediciones
 absolute_time_t now;         // Tiempo actual
 int64_t elapsed_ms;          // Tiempo actual menos tiempo inicial
 
-LSM9DS1 imu(i2c_port,SDA_PIN, SCL_PIN, I2C_FREC);                 // Sensor de mediciones
+// Inicializacion de comunicacion con los sensores
+LSM9DS1 imu(i2c_port,SDA_PIN, SCL_PIN, I2C_FREC);
 MLX90393 magnt(i2c_port,SDA_PIN, SCL_PIN, I2C_FREC);
 /*
-Este buffer se usa con el proposito de guardar mediciones
+Estos buffers se usan con el proposito de guardar mediciones
 al hacer lecturas para despues escribirlas en el archivo
 */ 
-LSM9DS1Data lecturaLSM[BUFFER_SIZE];   // Buffer para los datos de la IMU
+LSM9DS1::LSM9DS1Data lecturaLSM[BUFFER_SIZE];   // Buffer para los datos de la IMU
 MLX90393::MLX90393Data lecturasMLX[BUFFER_SIZE]; // Buffer de datos magnetometro
 
 
@@ -111,15 +110,16 @@ int main() {
     const char* const filename1 = "LSM9DS1.txt";
     const char* const filename2 = "MLX90393.txt";
 
-    //===================================Inicializacion imu===================================
-    // Inicializar sensores con parámetros personalizados
+    //=================================================Inicializacion imu=================================================
     imu.init_accel(LSM9DS1::SCALE_GYRO_500DPS, LSM9DS1::SCALE_ACCEL_4G, 
                   LSM9DS1::ODR_119HZ, LSM9DS1::ODR_119HZ);
     imu.init_magnetometer(LSM9DS1::MAG_SCALE_4GAUSS, LSM9DS1::MAG_ODR_80HZ);
     imu.calibrate_magnetometer(0.15f, 0.08f, -0.47f);
     imu.calibrate_gyro(-0.2673f, 0.5627f, 0.8419);
     printf("Sensor LSM9DS1 conectado y funcionando correctamente\n");
+    //====================================================================================================================
 
+    //=============================================Inicializacion magnetometro=============================================
     magnt.init_sensor(
         0x8000, 0x8000, 0x8000,      // Offsets X,Y,Z
         MLX90393::RESOLUTION_MAX,   // Resolución X
@@ -128,13 +128,14 @@ int main() {
         MLX90393::FILT_1,           // Filtro digital
         MLX90393::OSR_MAX         // Oversampling
     );
+    //=====================================================================================================================
     
     // Interrupcion para leer los sensores cada 10 ms
     struct repeating_timer timer;
     add_repeating_timer_ms(10, capturar10ms, NULL, &timer);
 
-    // Variable auxiliar para guardar los datos a escribir desde el buffer
-    LSM9DS1Data current_data_lsm;
+    // Variables auxiliar para guardar los datos a escribir desde el buffer
+    LSM9DS1::LSM9DS1Data current_data_lsm;
     MLX90393::MLX90393Data current_data_mlx;
     
     // Empezamos a medir el tiempo
@@ -166,17 +167,13 @@ int main() {
             if (!abrir_archivo(&file1, filename1)) {
                 while (1);  // Manejo de error
             }
-            if (!escribir_LSM9DS1(&file1, current_data_lsm.accel, current_data_lsm.gyro, 
-                                 current_data_lsm.mag, current_data_lsm.elapsed_ms)) {
+            if (!guardar_mediciones_LSM9DS1(&file1, current_data_lsm.accel, current_data_lsm.gyro, 
+                                 current_data_lsm.mag, current_data_lsm.time_ms)) {
                 while (1);  // Manejo de error
             }
             if (!cerrar_archivo(&file1)) {
                 while (1);  // Manejo de error
             }
-            // printf("[%.2f,%.2f,%.2f][%.2f,%.2f,%.2f][%.2f,%.2f,%.2f] @  %lld ms\n",
-            // current_data.accel[0], current_data.accel[1], current_data.accel[2],
-            // current_data.gyro[0], current_data.gyro[1], current_data.gyro[2],
-            // current_data.mag[0], current_data.mag[1], current_data.mag[2], current_data.elapsed_ms);
         }
 
         // Se verifica si el buffer tiene informacion por leer
@@ -235,7 +232,7 @@ bool cerrar_archivo(FIL* fil) {
     return true;
 }
 
-bool escribir_LSM9DS1(FIL* fil, float accel[3], float gyro[3], float mag[3], uint64_t time) {
+bool guardar_mediciones_LSM9DS1(FIL* fil, float accel[3], float gyro[3], float mag[3], uint64_t time) {
     if (f_printf(fil, "[%.2f,%.2f,%.2f][%.2f,%.2f,%.2f][%.2f,%.2f,%.2f] @  %lld ms\n",
         accel[0], accel[1], accel[2],
         gyro[0], gyro[1], gyro[2],
@@ -260,34 +257,38 @@ bool guardar_mediciones_MLX90393(FIL* fil, float x, float y, float z, uint64_t t
 
 bool capturar10ms(__unused repeating_timer *t)
 {
-    // Se calcula el tiempo que ha pasado
+    // Se calcula el tiempo que ha pasado desde la anterior interrupcion
     now = get_absolute_time();
     elapsed_ms = absolute_time_diff_us(start_time, now) / 1000;
-    // Se leen los datos del sensor
-    imu.read_accelerometer(accel);
-    imu.read_gyroscope(gyro);
-    imu.read_magnetometer(mag);
+    //===================================Leer LSM9DS1===================================
+    imu.read_accelerometer();
+    imu.read_gyroscope();
+    imu.read_magnetometer();
+    imu.last_measurement.time_ms = elapsed_ms;
+    //==================================================================================
+
+    //=============================Comenzar lectura MLX90393=============================
+    magnt.begin_measurement_mag(elapsed_ms);
+    //===================================================================================
     
-    // Se guardan los datos del sensor
+
     uint32_t save = save_and_disable_interrupts();
-    lecturaLSM[imu.buffer_head] = (LSM9DS1Data){ .accel = {accel[0], accel[1], accel[2]},
-                                             .gyro = {gyro[0], gyro[1], gyro[2]},
-                                             .mag = {mag[0], mag[1], mag[2]},
-                                             .elapsed_ms = elapsed_ms };
+
+    //==================================Guardar LSM9DS1==================================
+    lecturaLSM[imu.buffer_head] = imu.last_measurement;
     imu.buffer_head = (imu.buffer_head + 1) % BUFFER_SIZE;
     imu.buffer_full = (imu.buffer_head == imu.buffer_tail);
+    //===================================================================================
 
-    // 1. Comienza la medicion
-    magnt.begin_measurement_mag(elapsed_ms);
-
-    // 2. Leer e imprimir la medición anterior (excepto en la primera iteración)
-    if (!magnt.is_mag_measurement_ready) {
+    //==================================Guardar MLX90393==================================
+    if (!magnt.is_mag_first_measurement) {          // Ya se ha inicializado la medicion en la anterior interrupcion
         lecturasMLX[magnt.buffer_head] = magnt.read_measurement_mag();  // Lee la medición iniciada hace 10 ms
         magnt.buffer_head = (magnt.buffer_head + 1) % BUFFER_SIZE;
         magnt.buffer_full = (magnt.buffer_head == magnt.buffer_tail);
     } else {
-        magnt.is_mag_measurement_ready = false;
+        magnt.is_mag_first_measurement = false;     // Se resetea la variable
     }
+    //====================================================================================
 
     restore_interrupts(save);
     return true;

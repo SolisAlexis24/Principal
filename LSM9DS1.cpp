@@ -109,7 +109,7 @@ void LSM9DS1::init_magnetometer(MagScale scale, MagODR sample_rate) {
  * 
  * @param accel Arreglo donde se almacenarán los datos [X,Y,Z] en g
  */
-void LSM9DS1::read_accelerometer(float accel[3]) {
+LSM9DS1::LSM9DS1Data LSM9DS1::read_accelerometer() {
     uint8_t buf[6]; // ( 2 bytes por eje)
     read_bytes(AG_ADDR, OUT_X_L_XL | 0x80, buf, 6);  // Leer 6 registros consecutivos 
     
@@ -119,9 +119,11 @@ void LSM9DS1::read_accelerometer(float accel[3]) {
     int16_t z = (buf[5] << 8) | buf[4];
     
     // Aplicar factor de escala para convertir a g
-    accel[0] = x * accel_scale_factor_;
-    accel[1] = y * accel_scale_factor_;
-    accel[2] = z * accel_scale_factor_;
+    last_measurement.accel[0] = x * accel_scale_factor_;
+    last_measurement.accel[1] = y * accel_scale_factor_;
+    last_measurement.accel[2] = z * accel_scale_factor_;
+
+    return this->last_measurement;
 }
 
 /**
@@ -129,7 +131,7 @@ void LSM9DS1::read_accelerometer(float accel[3]) {
  * 
  * @param gyro Arreglo donde se almacenarán los datos [X,Y,Z] en dps
  */
-void LSM9DS1::read_gyroscope(float gyro[3]) {
+LSM9DS1::LSM9DS1Data LSM9DS1::read_gyroscope() {
     uint8_t buf[6];
     read_bytes(AG_ADDR, OUT_X_L_G | 0x80, buf, 6);
     
@@ -140,9 +142,10 @@ void LSM9DS1::read_gyroscope(float gyro[3]) {
     // gyro[0] = x * gyro_scale_factor_ + 0.2673;
     // gyro[1] = y * gyro_scale_factor_ - 0.5627;
     // gyro[2] = z * gyro_scale_factor_ - 0.8419;
-    gyro[0] = x * gyro_scale_factor_ - gyro_offset_x_;
-    gyro[1] = y * gyro_scale_factor_ - gyro_offset_y_;
-    gyro[2] = z * gyro_scale_factor_ - gyro_offset_z_;
+    last_measurement.gyro[0] = x * gyro_scale_factor_ - gyro_offset_x_;
+    last_measurement.gyro[1] = y * gyro_scale_factor_ - gyro_offset_y_;
+    last_measurement.gyro[2] = z * gyro_scale_factor_ - gyro_offset_z_;
+    return this->last_measurement;
 }
 
 /**
@@ -150,7 +153,7 @@ void LSM9DS1::read_gyroscope(float gyro[3]) {
  * 
  * @param mag Arreglo donde se almacenarán los datos [X,Y,Z] en Gauss
  */
-void LSM9DS1::read_magnetometer(float mag[3]) {
+LSM9DS1::LSM9DS1Data LSM9DS1::read_magnetometer() {
     uint8_t buf[6];
     read_bytes(M_ADDR, OUT_X_L_M | 0x80, buf, 6);
     
@@ -158,9 +161,10 @@ void LSM9DS1::read_magnetometer(float mag[3]) {
     int16_t y = (buf[3] << 8) | buf[2];
     int16_t z = (buf[5] << 8) | buf[4];
     
-    mag[0] = x * mag_scale_factor_;
-    mag[1] = y * mag_scale_factor_;
-    mag[2] = z * mag_scale_factor_;
+    last_measurement.mag[0] = x * mag_scale_factor_;
+    last_measurement.mag[1] = y * mag_scale_factor_;
+    last_measurement.mag[2] = z * mag_scale_factor_;
+    return this->last_measurement;
 }
 
 void LSM9DS1::calibrate_magnetometer(float offset_x, float offset_y, float offset_z){
