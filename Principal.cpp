@@ -37,13 +37,14 @@ bool cerrar_archivo(FIL* fil);
 /**
  * @brief Intenta escribir los datos del LSM9DS1 en la SD
  * @param fil Puntero al archivo sobre el que se trabaja
+ * @param filename Nombre del archivo que se va a escribir
  * @param accel Informacion acerca de la aceleracion
  * @param gyro Informacion acerca del giro
  * @param mag Informacion acerca del magnetometro
  */
-bool guardar_mediciones_LSM9DS1(FIL* fil, float accel[3], float gyro[3], float mag[3], uint64_t time);
+bool guardar_mediciones_LSM9DS1(FIL* fil, const char* filename ,float accel[3], float gyro[3], float mag[3], uint64_t time);
 
-bool guardar_mediciones_MLX90393(FIL* fil, float x, float y, float z, uint64_t time);
+bool guardar_mediciones_MLX90393(FIL* fil, const char* filename, float x, float y, float z, uint64_t time);
 
 /**
  * @brief Interrupcion que se lanza cada 10 ms para leer sensores
@@ -107,8 +108,8 @@ int main() {
     // Puntero al archivo
     FIL file1, file2;
     // Nombre del archivo
-    const char* const filename1 = "LSM9DS1.txt";
-    const char* const filename2 = "MLX90393.txt";
+    const char* const filename1 = "LSM9DS1.csv";
+    const char* const filename2 = "MLX90393.csv";
 
     //=================================================Inicializacion imu=================================================
     imu.init_accel(LSM9DS1::SCALE_GYRO_500DPS, LSM9DS1::SCALE_ACCEL_4G, 
@@ -117,6 +118,16 @@ int main() {
     imu.calibrate_magnetometer(0.15f, 0.08f, -0.47f);
     imu.calibrate_gyro(-0.2673f, 0.5627f, 0.8419);
     printf("Sensor LSM9DS1 conectado y funcionando correctamente\n");
+    if(abrir_archivo(&file1, filename1)){
+        if (f_printf(&file1, "A(x)[g],A(y)[g],A(z)[g],G(x)[dps],G(y)[dps],G(z)[dps],B(x)[G],B(y)[G],B(z)[G],t[ms]\n") < 0) {
+            printf("f_printf failed\n");
+            blink_led(6, 200); // Error de escritura
+            return false;
+        }       
+    }
+    if (!cerrar_archivo(&file1)) {
+        while (1);  // Manejo de error
+    }
     //====================================================================================================================
 
     //=============================================Inicializacion magnetometro=============================================
@@ -128,6 +139,16 @@ int main() {
         MLX90393::FILT_1,           // Filtro digital
         MLX90393::OSR_MAX         // Oversampling
     );
+    if(abrir_archivo(&file2, filename2)){
+        if (f_printf(&file2, "B(x)[uT],B(y)[uT],B(z)[uT],t[ms]\n") < 0) {
+            printf("f_printf failed\n");
+            blink_led(6, 200); // Error de escritura
+            return false;
+        }       
+    }
+    if (!cerrar_archivo(&file2)) {
+        while (1);  // Manejo de error
+    }
     //=====================================================================================================================
     
     // Interrupcion para leer los sensores cada 10 ms
@@ -162,16 +183,8 @@ int main() {
             imu.buffer_tail = (imu.buffer_tail + 1) % BUFFER_SIZE;
             imu.buffer_full = false;
             restore_interrupts(save);
-
-            // Escribe en SD (fuera de la interrupción)
-            if (!abrir_archivo(&file1, filename1)) {
-                while (1);  // Manejo de error
-            }
-            if (!guardar_mediciones_LSM9DS1(&file1, current_data_lsm.accel, current_data_lsm.gyro, 
+            if (!guardar_mediciones_LSM9DS1(&file1, filename1, current_data_lsm.accel, current_data_lsm.gyro, 
                                  current_data_lsm.mag, current_data_lsm.time_ms)) {
-                while (1);  // Manejo de error
-            }
-            if (!cerrar_archivo(&file1)) {
                 while (1);  // Manejo de error
             }
         }
@@ -185,15 +198,8 @@ int main() {
             magnt.buffer_full = false;
             restore_interrupts(save);
 
-            // Escribe en SD (fuera de la interrupción)
-            if (!abrir_archivo(&file2, filename2)) {
-                while (1);  // Manejo de error
-            }
-            if (!guardar_mediciones_MLX90393(&file2, current_data_mlx.x, current_data_mlx.y, 
+            if (!guardar_mediciones_MLX90393(&file2, filename2, current_data_mlx.x, current_data_mlx.y, 
                 current_data_mlx.z, current_data_mlx.time_ms)) {
-                while (1);  // Manejo de error
-            }
-            if (!cerrar_archivo(&file2)) {
                 while (1);  // Manejo de error
             }
         }      
@@ -232,8 +238,9 @@ bool cerrar_archivo(FIL* fil) {
     return true;
 }
 
-bool guardar_mediciones_LSM9DS1(FIL* fil, float accel[3], float gyro[3], float mag[3], uint64_t time) {
-    if (f_printf(fil, "[%.2f,%.2f,%.2f][%.2f,%.2f,%.2f][%.2f,%.2f,%.2f] @  %lld ms\n",
+bool guardar_mediciones_LSM9DS1(FIL* fil, const char* filename ,float accel[3], float gyro[3], float mag[3], uint64_t time) {
+    if(!abrir_archivo(fil, filename)) return false;
+    if (f_printf(fil, "%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%lld\n",
         accel[0], accel[1], accel[2],
         gyro[0], gyro[1], gyro[2],
         mag[0], mag[1], mag[2], time) < 0) {
@@ -241,16 +248,19 @@ bool guardar_mediciones_LSM9DS1(FIL* fil, float accel[3], float gyro[3], float m
         blink_led(6, 200); // Error de escritura
         return false;
     }
+    if(!cerrar_archivo(fil)) return false;
     return true;
 }
 
-bool guardar_mediciones_MLX90393(FIL* fil, float x, float y, float z, uint64_t time){
-    if (f_printf(fil, "[%.2f,%.2f,%.2f] @  %lld ms\n",
+bool guardar_mediciones_MLX90393(FIL* fil, const char* filename, float x, float y, float z, uint64_t time){
+    if(!abrir_archivo(fil, filename)) return false;
+    if (f_printf(fil, "%.2f,%.2f,%.2f,%lld ms\n",
         x, y, z, time) < 0) {
         printf("f_printf failed\n");
         blink_led(6, 200); // Error de escritura
         return false;
     }
+    if(!cerrar_archivo(fil)) return false;
     return true;   
 }
 
