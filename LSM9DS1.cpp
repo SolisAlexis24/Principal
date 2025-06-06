@@ -25,13 +25,14 @@ LSM9DS1::LSM9DS1(i2c_inst_t* i2c_port, uint sda_pin, uint scl_pin, uint i2c_freq
  * @param gyro_odr Tasa de muestreo del giroscopio (ODR)
  * @param accel_odr Tasa de muestreo del acelerómetro (ODR)
  */
-void LSM9DS1::init_accel(GyroScale gyro_scale, AccelScale accel_scale, ODR gyro_odr, ODR accel_odr) {
+bool LSM9DS1::init_accel(GyroScale gyro_scale, AccelScale accel_scale, ODR gyro_odr, ODR accel_odr) {
     // Verificar conexión leyendo el registro WHO_AM_I
     uint8_t whoami_ag = read_register(AG_ADDR, WHO_AM_I_AG);
     printf("WHO_AM_I_AG: 0x%02X (esperado: 0x68)\n", whoami_ag);
     
     if (whoami_ag != 0x68) {
-        while(true) printf("Error: Sensor LSM9DS1 (AG) no detectado!\n");
+        printf("Error: Sensor LSM9DS1 (AG) no detectado!\n");
+        return false;
     }
 
     // Configurar giroscopio - CTRL_REG1_G (0x10)
@@ -62,6 +63,8 @@ void LSM9DS1::init_accel(GyroScale gyro_scale, AccelScale accel_scale, ODR gyro_
     
     // Calcular factores de escala para conversión
     calculate_accel_scale_factors(gyro_scale, accel_scale);
+
+    return true;
 }
 
 /**
@@ -72,13 +75,14 @@ void LSM9DS1::init_accel(GyroScale gyro_scale, AccelScale accel_scale, ODR gyro_
  * @param scale Rango del magnetómetro (4/8/12/16 Gauss)
  * @param sample_rate Tasa de muestreo (0.625Hz a 80Hz)
  */
-void LSM9DS1::init_magnetometer(MagScale scale, MagODR sample_rate) {
+bool LSM9DS1::init_magnetometer(MagScale scale, MagODR sample_rate) {
     // Verificar conexión leyendo el registro WHO_AM_I
     uint8_t whoami_m = read_register(M_ADDR, WHO_AM_I_M);
     printf("WHO_AM_I_M: 0x%02X (esperado: 0x3D)\n", whoami_m);
 
     if (whoami_m != 0x3D) {
-        while(true) printf("Error: Magnetómetro LSM9DS1 no detectado!\n");
+        printf("Error: Magnetómetro LSM9DS1 no detectado!\n");
+        return false;
     }
 
     // Configurar CTRL_REG1_M (0x20)
@@ -102,6 +106,8 @@ void LSM9DS1::init_magnetometer(MagScale scale, MagODR sample_rate) {
     
     // Calcular factor de escala
     calculate_mag_scale_factor(scale);
+
+    return true;
 }
 
 /**

@@ -69,7 +69,7 @@ public:
      * @param osr2 Oversampling Ratio del CAD para el sensor de temperatura
      * @param gain ganancia que se tiene para las mediciones
      */
-    void init_sensor(uint16_t offset_x = 0, 
+    bool init_sensor(uint16_t offset_x = 0, 
                         uint16_t offset_y = 0, 
                         uint16_t offset_z = 0, 
                         RES res_x = RESOLUTION_MAX, 
@@ -119,15 +119,6 @@ public:
     uint16_t aquisition_time_temp = 0.0f;
 
     MLX90393Data last_measurement;      // Variable que ayuda a guardar los datos de la ultima medicion
-    
-    // Estas variables se deben de modificar manualmente por la falta del pin de interrupcion
-    bool is_mag_first_measurement;  // Variable que indica que la medicion del magnetrometro esta lista
-    bool is_temp_first_measurement; // Variable que indica que la medicion del termometro esta lista
-
-    // Variables para el manejo del buffer 
-    volatile uint8_t buffer_head = 0;  // Índice de escritura (interrupción)
-    volatile uint8_t buffer_tail = 0;  // Índice de lectura (loop principal)
-    volatile bool buffer_full = false; // Bandera de buffer lleno
 
 
 

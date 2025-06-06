@@ -5,12 +5,13 @@ MLX90393::MLX90393(i2c_inst_t *i2c_port, uint sda_pin, uint scl_pin, uint i2c_fr
         // Inicializar hardware I2C
 }
 
-void MLX90393::init_sensor(uint16_t offset_x, uint16_t offset_y, uint16_t offset_z,
+bool MLX90393::init_sensor(uint16_t offset_x, uint16_t offset_y, uint16_t offset_z,
                             RES res_x, RES res_y, RES res_z, DIG_FILT filt, OSR osr, OSR osr2, GAIN gain){
     if (this->verify_connection()) {
         printf("Sensor MLX90393 conectado y funcionando correctamente\n");
     } else {
-        while(1) printf("Error: Problema con la conexión del sensor\n");
+        printf("Error: Problema con la conexión del sensor MLX90393\n");
+        return false;
     }
     // Desactiva la comunicación SPI Registro 0x01
     //[TRIG_INT][COMM_MODE(13:14)][WOC_DIFF][EXT_TGR][TCMP_EN][BURS_SEL (6:9)][BDR (0:5)]
@@ -43,10 +44,10 @@ void MLX90393::init_sensor(uint16_t offset_x, uint16_t offset_y, uint16_t offset
     // 2. Se anade la nueva informacion de la ganancia ((uint16_t(gain) << 4) & 0x0070)
     uint16_t new_data = old_data & 0xFF8F | ((uint16_t(gain) << 4) & 0x0070);
 
-    this->is_mag_first_measurement = true;
-    this->is_temp_first_measurement= true;
     printf("Sensor inicializado. Tiempo de adquisición mag : %u us\n", this->aquisition_time_mag);
     printf("Sensor inicializado. Tiempo de adquisición temp : %u us\n", this->aquisition_time_temp);
+
+    return true;
 }
 
 bool MLX90393::begin_measurement_mag(uint64_t begin_time){
@@ -248,7 +249,7 @@ bool MLX90393::verify_connection() {
     if (hallconf != 0xC) {
         printf("Advertencia: HALLCONF (0x%X) no tiene el valor por defecto (0xC)\n", hallconf);
         // Puedes decidir si considerar esto como error o no
-        // return false; // Descomentar para exigir el valor por defecto
+        return false; // Descomentar para exigir el valor por defecto
     }
 
     return true;

@@ -7,44 +7,13 @@
 #include "hardware/i2c.h"
 #include "f_util.h"
 #include "ff.h"
+#include "sensor_handler.h"
 #include "LSM9DS1.h"
 #include "MLX90393.h"
-
-#define LED_PIN 25  // LED integrado de la Pico
 #define BUFFER_SIZE 32
 #define SDA_PIN 16
 #define SCL_PIN 17
 #define I2C_FREC 400000
-
-/**
- * @brief Hace parpadear el LED un número específico de veces
- * @param count Número de parpadeos
- * @param delay_ms Tiempo entre parpadeos en milisegundos
- */
-void blink_led(uint8_t count, uint16_t delay_ms);
-
-/**
- * @brief Intenta abrir un acrchivo
- * @param fil Puntero al archivo sobre el que se trabaja
- * @param filename Nombre del archivo sobre el que se trabaja
- */
-bool abrir_archivo(FIL* fil, const char* filename);
-/**
- * @brief Intenta cerrar un acrchivo
- * @param fil Puntero al archivo sobre el que se trabaja
- */
-bool cerrar_archivo(FIL* fil);
-/**
- * @brief Intenta escribir los datos del LSM9DS1 en la SD
- * @param fil Puntero al archivo sobre el que se trabaja
- * @param filename Nombre del archivo que se va a escribir
- * @param accel Informacion acerca de la aceleracion
- * @param gyro Informacion acerca del giro
- * @param mag Informacion acerca del magnetometro
- */
-bool guardar_mediciones_LSM9DS1(FIL* fil, const char* filename ,float accel[3], float gyro[3], float mag[3], uint64_t time);
-
-bool guardar_mediciones_MLX90393(FIL* fil, const char* filename, float x, float y, float z, uint64_t time);
 
 /**
  * @brief Interrupcion que se lanza cada 10 ms para leer sensores
@@ -63,14 +32,12 @@ absolute_time_t now;         // Tiempo actual
 int64_t elapsed_ms;          // Tiempo actual menos tiempo inicial
 
 // Inicializacion de comunicacion con los sensores
-LSM9DS1 imu(i2c_port,SDA_PIN, SCL_PIN, I2C_FREC);
+LSM9DS1 lsm(i2c_port,SDA_PIN, SCL_PIN, I2C_FREC);
 MLX90393 magnt(i2c_port,SDA_PIN, SCL_PIN, I2C_FREC);
-/*
-Estos buffers se usan con el proposito de guardar mediciones
-al hacer lecturas para despues escribirlas en el archivo
-*/ 
-LSM9DS1::LSM9DS1Data lecturaLSM[BUFFER_SIZE];   // Buffer para los datos de la IMU
-MLX90393::MLX90393Data lecturasMLX[BUFFER_SIZE]; // Buffer de datos magnetometro
+
+// Variables globales para los sensores
+SensorHandler LSM_handler;
+SensorHandler MLX_handler;
 
 
 int main() {
@@ -106,58 +73,83 @@ int main() {
     }
     //=========================================================================================================================
     // Puntero al archivo
-    FIL file1, file2;
-    // Nombre del archivo
-    const char* const filename1 = "LSM9DS1.csv";
-    const char* const filename2 = "MLX90393.csv";
+    FIL LSM_file, MLX_file;
 
+    LSM_handler = (SensorHandler){
+        .is_connected = false,
+        .filename = "LSM9DS1.csv",
+        .file = &LSM_file,
+        .buffer_head = 0,
+        .buffer_tail = 0,
+        .buffer_full = false
+    };
+    MLX_handler = (SensorHandler){
+        .is_connected = false,
+        .filename = "MLX90393.csv",
+        .file = &LSM_file,
+        .buffer_head = 0,
+        .buffer_tail = 0,
+        .buffer_full = false,
+        .is_mag_data_ready = false, // Inicialmente no hay datos de magnetometro listos
+        .is_temp_data_ready = false, // Inicialmente no hay datos de temperatura listos
+    };
     //=================================================Inicializacion imu=================================================
-    imu.init_accel(LSM9DS1::SCALE_GYRO_500DPS, LSM9DS1::SCALE_ACCEL_4G, 
-                  LSM9DS1::ODR_119HZ, LSM9DS1::ODR_119HZ);
-    imu.init_magnetometer(LSM9DS1::MAG_SCALE_4GAUSS, LSM9DS1::MAG_ODR_80HZ);
-    imu.calibrate_magnetometer(0.15f, 0.08f, -0.47f);
-    imu.calibrate_gyro(-0.2673f, 0.5627f, 0.8419);
-    printf("Sensor LSM9DS1 conectado y funcionando correctamente\n");
-    if(abrir_archivo(&file1, filename1)){
-        if (f_printf(&file1, "A(x)[g],A(y)[g],A(z)[g],G(x)[dps],G(y)[dps],G(z)[dps],B(x)[G],B(y)[G],B(z)[G],t[ms]\n") < 0) {
-            printf("f_printf failed\n");
-            blink_led(6, 200); // Error de escritura
-            return false;
-        }       
+    if(lsm.init_accel(
+                LSM9DS1::SCALE_GYRO_500DPS, 
+                LSM9DS1::SCALE_ACCEL_4G, 
+                LSM9DS1::ODR_119HZ, LSM9DS1::ODR_119HZ) && 
+                lsm.init_magnetometer(
+                    LSM9DS1::MAG_SCALE_4GAUSS, 
+                    LSM9DS1::MAG_ODR_80HZ)){
+        lsm.calibrate_magnetometer(0.15f, 0.08f, -0.47f);
+        lsm.calibrate_gyro(-0.2673f, 0.5627f, 0.8419);
+        printf("Sensor LSM9DS1 conectado y funcionando correctamente\n");
+        if(abrir_archivo(LSM_handler.file, LSM_handler.filename)){
+            if (f_printf(LSM_handler.file, "A(x)[g],A(y)[g],A(z)[g],G(x)[dps],G(y)[dps],G(z)[dps],B(x)[G],B(y)[G],B(z)[G],t[ms]\n") < 0) {
+                printf("f_printf failed\n");
+                blink_led(6, 200); // Error de escritura
+                return false;
+            }       
+        }
+        if (!cerrar_archivo(LSM_handler.file)) {
+            while (1);  // Manejo de error
+        }
+        LSM_handler.is_connected = true;
     }
-    if (!cerrar_archivo(&file1)) {
-        while (1);  // Manejo de error
+    else{
+        LSM_handler.is_connected = false;
     }
     //====================================================================================================================
 
     //=============================================Inicializacion magnetometro=============================================
-    magnt.init_sensor(
+    if(magnt.init_sensor(
         0x8000, 0x8000, 0x8000,      // Offsets X,Y,Z
         MLX90393::RESOLUTION_MAX,   // Resolución X
         MLX90393::RESOLUTION_MAX,   // Resolución Y
         MLX90393::RESOLUTION_MAX,   // Resolución Z
         MLX90393::FILT_1,           // Filtro digital
         MLX90393::OSR_MAX         // Oversampling
-    );
-    if(abrir_archivo(&file2, filename2)){
-        if (f_printf(&file2, "B(x)[uT],B(y)[uT],B(z)[uT],t[ms]\n") < 0) {
-            printf("f_printf failed\n");
-            blink_led(6, 200); // Error de escritura
-            return false;
-        }       
+    )){
+        if(abrir_archivo(MLX_handler.file, MLX_handler.filename)){
+            if (f_printf(MLX_handler.file, "B(x)[uT],B(y)[uT],B(z)[uT],t[ms]\n") < 0) {
+                printf("f_printf failed\n");
+                blink_led(6, 200); // Error de escritura
+                return false;
+            }       
+        }
+        if (!cerrar_archivo(MLX_handler.file)) {
+            while (1);  // Manejo de error
+        }
+        MLX_handler.is_connected = true;
     }
-    if (!cerrar_archivo(&file2)) {
-        while (1);  // Manejo de error
+    else{
+        MLX_handler.is_connected = false;
     }
     //=====================================================================================================================
     
     // Interrupcion para leer los sensores cada 10 ms
     struct repeating_timer timer;
     add_repeating_timer_ms(10, capturar10ms, NULL, &timer);
-
-    // Variables auxiliar para guardar los datos a escribir desde el buffer
-    LSM9DS1::LSM9DS1Data current_data_lsm;
-    MLX90393::MLX90393Data current_data_mlx;
     
     // Empezamos a medir el tiempo
     start_time = get_absolute_time();
@@ -176,93 +168,37 @@ int main() {
         }
 
         // Se verifica si el buffer tiene informacion por leer
-        if (imu.buffer_tail != imu.buffer_head || imu.buffer_full) {
-            // Extrae datos del buffer (con interrupciones desactivadas)
-            uint32_t save = save_and_disable_interrupts();
-            current_data_lsm = lecturaLSM[imu.buffer_tail];
-            imu.buffer_tail = (imu.buffer_tail + 1) % BUFFER_SIZE;
-            imu.buffer_full = false;
-            restore_interrupts(save);
-            if (!guardar_mediciones_LSM9DS1(&file1, filename1, current_data_lsm.accel, current_data_lsm.gyro, 
-                                 current_data_lsm.mag, current_data_lsm.time_ms)) {
-                while (1);  // Manejo de error
+        if(is_connected(&LSM_handler)){
+            if (buffer_has_elements(&LSM_handler)) {
+                // Extrae datos del buffer (con interrupciones desactivadas)
+                uint32_t save = save_and_disable_interrupts();
+                LSM_handler.lsm_current =  LSM_handler.lsm_buffer[LSM_handler.buffer_tail];
+                LSM_handler.buffer_tail = (LSM_handler.buffer_tail + 1) % BUFFER_SIZE;
+                LSM_handler.buffer_full = false;
+                restore_interrupts(save);
+                if (!guardar_mediciones_LSM9DS1(&LSM_file, LSM_handler.filename, LSM_handler.lsm_current.accel, LSM_handler.lsm_current.gyro, LSM_handler.lsm_current.mag, LSM_handler.lsm_current.time_ms)) {
+                    printf("Error al guardar mediciones LSM9DS1\n");
+                }
             }
         }
 
-        // Se verifica si el buffer tiene informacion por leer
-        if (magnt.buffer_tail != magnt.buffer_head || magnt.buffer_full) {
-            // Extrae datos del buffer (con interrupciones desactivadas)
-            uint32_t save = save_and_disable_interrupts();
-            current_data_mlx = lecturasMLX[magnt.buffer_tail];
-            magnt.buffer_tail = (magnt.buffer_tail + 1) % BUFFER_SIZE;
-            magnt.buffer_full = false;
-            restore_interrupts(save);
-
-            if (!guardar_mediciones_MLX90393(&file2, filename2, current_data_mlx.x, current_data_mlx.y, 
-                current_data_mlx.z, current_data_mlx.time_ms)) {
-                while (1);  // Manejo de error
-            }
-        }      
+        if(is_connected(&MLX_handler)){
+            // Se verifica si el buffer tiene informacion por leer
+            if (buffer_has_elements(&MLX_handler)) {
+                // Extrae datos del buffer (con interrupciones desactivadas)
+                uint32_t save = save_and_disable_interrupts();
+                MLX_handler.mlx_current = MLX_handler.mlx_buffer[MLX_handler.buffer_tail];
+                MLX_handler.buffer_tail = (MLX_handler.buffer_tail + 1) % BUFFER_SIZE;
+                MLX_handler.buffer_full = false;
+                restore_interrupts(save);
+                if (!guardar_mediciones_MLX90393(&MLX_file, MLX_handler.filename, MLX_handler.mlx_current.x, MLX_handler.mlx_current.y,  MLX_handler.mlx_current.z, MLX_handler.mlx_current.time_ms)) {
+                    printf("Error al guardar mediciones MLX90393\n");
+                }
+            } 
+        }     
     }
 }
 
-void blink_led(uint8_t count, uint16_t delay_ms) {
-    gpio_init(LED_PIN);
-    gpio_set_dir(LED_PIN, GPIO_OUT);
-    
-    for(uint8_t i = 0; i < count; i++) {
-        gpio_put(LED_PIN, 1);
-        sleep_ms(delay_ms);
-        gpio_put(LED_PIN, 0);
-        sleep_ms(delay_ms);
-    }
-}
-
-bool abrir_archivo(FIL* fil, const char* filename) {
-    FRESULT fr = f_open(fil, filename, FA_OPEN_APPEND | FA_WRITE);
-    if (FR_OK != fr && FR_EXIST != fr) {
-        printf("f_open(%s) error: %s (%d)\n", filename, FRESULT_str(fr), fr);
-        blink_led(5, 200); // Error de apertura
-        return false;
-    }
-    return true;
-}
-
-bool cerrar_archivo(FIL* fil) {
-    FRESULT fr = f_close(fil);
-    if (FR_OK != fr) {
-        printf("Error al cerrar archivo: %s (%d)\n", FRESULT_str(fr), fr);
-        blink_led(7, 200); // Error de cierre
-        return false;
-    }
-    return true;
-}
-
-bool guardar_mediciones_LSM9DS1(FIL* fil, const char* filename ,float accel[3], float gyro[3], float mag[3], uint64_t time) {
-    if(!abrir_archivo(fil, filename)) return false;
-    if (f_printf(fil, "%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%lld\n",
-        accel[0], accel[1], accel[2],
-        gyro[0], gyro[1], gyro[2],
-        mag[0], mag[1], mag[2], time) < 0) {
-        printf("f_printf failed\n");
-        blink_led(6, 200); // Error de escritura
-        return false;
-    }
-    if(!cerrar_archivo(fil)) return false;
-    return true;
-}
-
-bool guardar_mediciones_MLX90393(FIL* fil, const char* filename, float x, float y, float z, uint64_t time){
-    if(!abrir_archivo(fil, filename)) return false;
-    if (f_printf(fil, "%.2f,%.2f,%.2f,%lld ms\n",
-        x, y, z, time) < 0) {
-        printf("f_printf failed\n");
-        blink_led(6, 200); // Error de escritura
-        return false;
-    }
-    if(!cerrar_archivo(fil)) return false;
-    return true;   
-}
 
 
 bool capturar10ms(__unused repeating_timer *t)
@@ -271,32 +207,42 @@ bool capturar10ms(__unused repeating_timer *t)
     now = get_absolute_time();
     elapsed_ms = absolute_time_diff_us(start_time, now) / 1000;
     //===================================Leer LSM9DS1===================================
-    imu.read_accelerometer();
-    imu.read_gyroscope();
-    imu.read_magnetometer();
-    imu.last_measurement.time_ms = elapsed_ms;
+    if(is_connected(&LSM_handler)){
+        lsm.read_accelerometer();
+        lsm.read_gyroscope();
+        lsm.read_magnetometer();
+        lsm.last_measurement.time_ms = elapsed_ms;
+    }
     //==================================================================================
-
-    //=============================Comenzar lectura MLX90393=============================
-    magnt.begin_measurement_mag(elapsed_ms);
-    //===================================================================================
-    
+  
 
     uint32_t save = save_and_disable_interrupts();
 
     //==================================Guardar LSM9DS1==================================
-    lecturaLSM[imu.buffer_head] = imu.last_measurement;
-    imu.buffer_head = (imu.buffer_head + 1) % BUFFER_SIZE;
-    imu.buffer_full = (imu.buffer_head == imu.buffer_tail);
+    if(is_connected(&LSM_handler)){
+        LSM_handler.lsm_buffer[LSM_handler.buffer_head] = lsm.last_measurement;
+        LSM_handler.buffer_head = (LSM_handler.buffer_head + 1) % BUFFER_SIZE;
+        LSM_handler.buffer_full = (LSM_handler.buffer_head == LSM_handler.buffer_tail);
+    }
     //===================================================================================
 
-    //==================================Guardar MLX90393==================================
-    if (!magnt.is_mag_first_measurement) {          // Ya se ha inicializado la medicion en la anterior interrupcion
-        lecturasMLX[magnt.buffer_head] = magnt.read_measurement_mag();  // Lee la medición iniciada hace 10 ms
-        magnt.buffer_head = (magnt.buffer_head + 1) % BUFFER_SIZE;
-        magnt.buffer_full = (magnt.buffer_head == magnt.buffer_tail);
-    } else {
-        magnt.is_mag_first_measurement = false;     // Se resetea la variable
+    //==================================Leer y Guardar MLX90393==================================
+    if(is_connected(&MLX_handler)){
+        if (MLX_handler.is_mag_data_ready) {
+            // 1. Leer y guardar los datos en el buffer
+            MLX_handler.mlx_buffer[MLX_handler.buffer_head] = magnt.read_measurement_mag();
+            MLX_handler.buffer_head = (MLX_handler.buffer_head + 1) % BUFFER_SIZE;
+            MLX_handler.buffer_full = (MLX_handler.buffer_head == MLX_handler.buffer_tail);
+            MLX_handler.is_mag_data_ready = false;
+
+            // 2. Comenzar una nueva medición para el siguiente ciclo
+            magnt.begin_measurement_mag(elapsed_ms);
+        } else {
+            // Si no hay datos listos, simplemente comenzamos una nueva medición
+            // Esto asegura que siempre estemos listos para la próxima medición
+            magnt.begin_measurement_mag(elapsed_ms);
+            MLX_handler.is_mag_data_ready = true;
+        }
     }
     //====================================================================================
 

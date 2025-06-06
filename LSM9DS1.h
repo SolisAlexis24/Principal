@@ -82,7 +82,7 @@ public:
      * @param gyro_odr Tasa de muestreo del giroscopio
      * @param accel_odr Tasa de muestreo del acelerómetro
      */
-    void init_accel(GyroScale gyro_scale = SCALE_GYRO_245DPS,
+    bool init_accel(GyroScale gyro_scale = SCALE_GYRO_245DPS,
                    AccelScale accel_scale = SCALE_ACCEL_4G,
                    ODR gyro_odr = ODR_119HZ,
                    ODR accel_odr = ODR_119HZ);
@@ -93,7 +93,7 @@ public:
      * @param scale Escala del magnetómetro (4/8/12/16 Gauss)
      * @param sample_rate Tasa de muestreo del magnetómetro
      */
-    void init_magnetometer(MagScale scale = MAG_SCALE_4GAUSS, 
+    bool init_magnetometer(MagScale scale = MAG_SCALE_4GAUSS, 
                          MagODR sample_rate = MAG_ODR_80HZ);
     
     /**
@@ -130,11 +130,6 @@ public:
     void calibrate_gyro(float offset_x, float offset_y, float offset_z);
 
     LSM9DS1Data last_measurement;      // Variable que ayuda a guardar los datos de la ultima medicion
-
-    // Variables para el manejo del buffer 
-    volatile uint8_t buffer_head = 0;  // Índice de escritura (interrupción)
-    volatile uint8_t buffer_tail = 0;  // Índice de lectura (loop principal)
-    volatile bool buffer_full = false; // Bandera de buffer lleno
 
 private:
     // Direcciones I2C

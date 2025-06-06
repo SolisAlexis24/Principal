@@ -37,6 +37,7 @@ pico_sdk_init()
 
 add_executable(Principal Principal.cpp 
                 hw_config.c
+                sensor_handler.cpp
                 LSM9DS1.cpp
                 MLX90393.cpp)
 
