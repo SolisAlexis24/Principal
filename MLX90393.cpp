@@ -84,7 +84,7 @@ MLX90393::MLX90393Data MLX90393::read_measurement_mag(){
     i2c_read_blocking(i2c_port_, ADDR, read_buf, 7, false);
 
 
-    if(read_buf[0] & 0x10) { printf("Error al obtener los datos\n "); return this->last_measurement;}
+    if(read_buf[0] & 0x10) { printf("Error al obtener los datos\n "); return MLX90393Data();}
 
     uint16_t raw_x = (read_buf[1] << 8) | read_buf[2];
     uint16_t raw_y = (read_buf[3] << 8) | read_buf[4];
@@ -171,7 +171,7 @@ MLX90393::MLX90393Data MLX90393::read_measurement_temp(){
     // Paso 2. Enviar reapeted start y leer los datos en el orden status y T
     i2c_read_blocking(i2c_port_, ADDR, read_buf, 3, false);
 
-    if(read_buf[0] & 0x10) { printf("Error al obtener los datos\n "); return this->last_measurement;}
+    if(read_buf[0] & 0x10) { printf("Error al obtener los datos\n "); return MLX90393Data();}
 
     uint16_t raw_temp = (read_buf[1] << 8) | read_buf[2];
 
@@ -190,11 +190,13 @@ uint16_t MLX90393::read_register(uint8_t reg){
     // Paso 1: Escribir comando RR + dirección de registro
     if(i2c_write_blocking(i2c_port_, ADDR, cmd, 2, true) != 2){ // true: no enviar stop
         printf("Error al escribir el comando de lectura de registro para 0x%0X\n", reg);
+        return 0;
     } 
 
     // Paso 2: Enviar repeated start y leer 3 bytes (status + MSB + LSB)
     if(i2c_read_blocking(i2c_port_, ADDR, read_buf, 3, false) != 3){
         printf("Error al obtener los datos");
+        return 0;
     }
 
     // Combinar los datos
@@ -215,11 +217,13 @@ void MLX90393::write_register(uint8_t reg, uint16_t val){
     // Paso 1: Escribir comando WR + informacion + dirección de registro
     if(i2c_write_blocking(i2c_port_, ADDR, cmd, 4, true) != 4){ // true: no enviar stop
         printf("Error al escribir el comando de escritura de registro para 0x%0X\n", reg);
+        return;
     } 
 
     // Paso 2: Enviar repeated start y leer 1 byte (status)
     if(i2c_read_blocking(i2c_port_, ADDR, read_buf, 1, false) != 1){
         printf("Error al obtener el byte de status");
+        return;
     }
 
 }
