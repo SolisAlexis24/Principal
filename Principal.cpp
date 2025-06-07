@@ -10,7 +10,7 @@
 #include "sensor_handler.h"
 #include "LSM9DS1.h"
 #include "MLX90393.h"
-#define BUFFER_SIZE 32
+
 #define SDA_PIN 16
 #define SCL_PIN 17
 #define I2C_FREC 400000
@@ -33,7 +33,7 @@ int64_t elapsed_ms;          // Tiempo actual menos tiempo inicial
 
 // Inicializacion de comunicacion con los sensores
 LSM9DS1 lsm(i2c_port,SDA_PIN, SCL_PIN, I2C_FREC);
-MLX90393 magnt(i2c_port,SDA_PIN, SCL_PIN, I2C_FREC);
+MLX90393 mlx(i2c_port,SDA_PIN, SCL_PIN, I2C_FREC);
 
 // Variables globales para los sensores
 SensorHandler LSM_handler;
@@ -122,7 +122,7 @@ int main() {
     //====================================================================================================================
 
     //=============================================Inicializacion magnetometro=============================================
-    if(magnt.init_sensor(
+    if(mlx.init_sensor(
         0x8000, 0x8000, 0x8000,      // Offsets X,Y,Z
         MLX90393::RESOLUTION_MAX,   // Resolución X
         MLX90393::RESOLUTION_MAX,   // Resolución Y
@@ -159,9 +159,7 @@ int main() {
         if (sd_card.sd_test_com && !sd_card.sd_test_com(&sd_card)) {
             printf("La tarjeta SD fue retirada, desmontando...\n");
             // Desmonta el sistema de archivos
-            f_unmount("");
-            // Puedes detener el sistema, esperar nueva inserción, etc.
-            while (1) {
+            f_unmount("");            while (1) {
                 blink_led(8, 500); // Indica tarjeta retirada
                 sleep_ms(1000);
             }
@@ -230,17 +228,17 @@ bool capturar10ms(__unused repeating_timer *t)
     if(is_connected(&MLX_handler)){
         if (MLX_handler.is_mag_data_ready) {
             // 1. Leer y guardar los datos en el buffer
-            MLX_handler.mlx_buffer[MLX_handler.buffer_head] = magnt.read_measurement_mag();
+            MLX_handler.mlx_buffer[MLX_handler.buffer_head] = mlx.read_measurement_mag();
             MLX_handler.buffer_head = (MLX_handler.buffer_head + 1) % BUFFER_SIZE;
             MLX_handler.buffer_full = (MLX_handler.buffer_head == MLX_handler.buffer_tail);
             MLX_handler.is_mag_data_ready = false;
 
             // 2. Comenzar una nueva medición para el siguiente ciclo
-            magnt.begin_measurement_mag(elapsed_ms);
+            mlx.begin_measurement_mag(elapsed_ms);
         } else {
             // Si no hay datos listos, simplemente comenzamos una nueva medición
             // Esto asegura que siempre estemos listos para la próxima medición
-            magnt.begin_measurement_mag(elapsed_ms);
+            mlx.begin_measurement_mag(elapsed_ms);
             MLX_handler.is_mag_data_ready = true;
         }
     }
