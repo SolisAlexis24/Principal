@@ -13,8 +13,9 @@ typedef struct {
     const char* filename;   // Nombre del archivo donde se guardan los datos
     FIL* file;              // Puntero al archivo donde se guardan los datos
     uint8_t buffer_head;    // Indices que indican donde se encuentra el buffer
-    uint8_t buffer_tail;    
+    uint8_t buffer_tail;  
     bool buffer_full;       // Indica si el buffer esta lleno
+    volatile bool fire_measurement; // Indica si se debe de hacer una medicion
     union { // Estructura que contiene el buffer de datos
         LSM9DS1::LSM9DS1Data lsm_buffer[BUFFER_SIZE];
         MLX90393::MLX90393Data mlx_buffer[BUFFER_SIZE];
@@ -24,9 +25,16 @@ typedef struct {
         MLX90393::MLX90393Data mlx_current;
     };
     // Estas variables se deben de modificar manualmente por la falta del pin de interrupcion
-    bool is_mag_data_ready; // Variable que indica que la medicion del magnetrometro esta lista
-    bool is_temp_data_ready; // Variable que indica que la medicion del termometro esta lista
+    union{
+        bool is_mag_first_time; // Variable que indica que la medicion del magnetrometro esta lista
+        bool is_temp_first_time; // Variable que indica que la medicion del termometro esta lista
+    };
 } SensorHandler;
+
+typedef struct {
+    MLX90393::MLX90393Data* mlx_temp_current;  // Puntero a los datos de temperatura
+    // Aquí puedes añadir más campos en el futuro
+} SensorData;
 
 /**
  * @brief Verifica si el sensor esta conectado
@@ -71,7 +79,7 @@ bool cerrar_archivo(FIL* fil);
 bool guardar_mediciones_LSM9DS1(FIL* fil, const char* filename ,float accel[3], float gyro[3], float mag[3], uint64_t time);
 
 /**
- * @brief Intenta escribir los datos del MLX90393 en la SD
+ * @brief Intenta escribir los datos del MLX90393_mag en la SD
  * @param fil Puntero al archivo sobre el que se trabaja
  * @param filename Nombre del archivo que se va a escribir
  * @param x Valor de la medicion en X
@@ -80,4 +88,23 @@ bool guardar_mediciones_LSM9DS1(FIL* fil, const char* filename ,float accel[3], 
  * @param time Tiempo de la medicion
  * @return true si se guardaron los datos correctamente, false en caso contrario
  */
-bool guardar_mediciones_MLX90393(FIL* fil, const char* filename, float x, float y, float z, uint64_t time);
+bool guardar_mediciones_mag_MLX90393(FIL* fil, const char* filename, float x, float y, float z, uint64_t time);
+
+/**
+ * @brief Intenta escribir los datos del MLX90393_temp en la SD
+ * @param fil Puntero al archivo sobre el que se trabaja
+ * @param filename Nombre del archivo que se va a escribir
+ * @param x Valor de la medicion en X
+ * @param y Valor de la medicion en Y
+ * @param z Valor de la medicion en Z
+ * @param time Tiempo de la medicion
+ * @return true si se guardaron los datos correctamente, false en caso contrario
+ */
+bool guardar_mediciones_temp_MLX90393(FIL* fil, const char* filename, float t, uint64_t time);
+
+template<typename T>
+void guardar_en_buffer(T* buffer, uint8_t& head, uint8_t tail, int buffer_size, bool& buffer_full, const T& medicion) {
+    buffer[head] = medicion;
+    head = (head + 1) % buffer_size;
+    buffer_full = (head == tail);
+}

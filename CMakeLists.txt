@@ -56,6 +56,7 @@ target_link_libraries(Principal
         no-OS-FatFS-SD-SDIO-SPI-RPi-Pico
         hardware_spi
         hardware_i2c
+        pico_multicore
         )
 
 # Add the standard include files to the build

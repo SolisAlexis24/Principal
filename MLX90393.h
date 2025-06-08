@@ -85,7 +85,7 @@ public:
      * @param begin_time Tiempo en el que se incia la medicion
      * @return Estructura con los datos para x, y y z
      */
-    bool begin_measurement_mag(uint64_t begin_time);
+    bool begin_measurement_mag();
 
     /**
      * @brief Metodo que recaba la medicion del magnetometro
@@ -98,13 +98,26 @@ public:
      * @param begin_time Tiempo en el que se incia la medicion
      * @return Estructura con los datos para t
      */
-    bool begin_measurement_temp(uint64_t begin_time);
+    bool begin_measurement_temp();
 
     /**
      * @brief Metodo que recaba la medicion del sensor de temperatura
      * @return Estructura con los datos para t
      */
     MLX90393Data read_measurement_temp();
+
+    /**
+     * @brief Metodo que inicia la medicion del magnetometro y del sensor de temperatura
+     * @param begin_time Tiempo en el que se incia la medicion
+     * @return Estructura con los datos para x, y, z y t
+     */
+    bool begin_measurement_mt();
+
+    /**
+     * @brief Metodo que recaba la medicion del magnetometro y del sensor de temperatura
+     * @return Estructura con los datos para x, y, z y t
+     */
+    MLX90393Data read_measurement_mt();
 
     /**
      * @brief Metodo que verifica si se tiene conexion con el sensor
@@ -131,6 +144,8 @@ private:
     static constexpr uint8_t RM_XYZ = 0x4E; // Extraer lectura en XYZ, no T
     static constexpr uint8_t SM_T = 0x31; // Iniciar modo Single-measurement en T
     static constexpr uint8_t RM_T = 0x41; // Extraer lectura en T
+    static constexpr uint8_t SM_XYZT = 0x3F; // Iniciar modo Single-measurement en XYZT
+    static constexpr uint8_t RM_XYZT = 0x4F; // Extraer lectura en XYZT
     // Este comando debe completarse con el envio del registro a leer
     static constexpr uint8_t RR = 0x50;     // Leer registro
     // Este comando debe completarse con el envio del dato a escribir (2 bytes) y el registro a escribir

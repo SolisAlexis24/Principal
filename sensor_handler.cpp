@@ -56,9 +56,9 @@ bool guardar_mediciones_LSM9DS1(FIL* fil, const char* filename ,float accel[3], 
     return true;
 }
 
-bool guardar_mediciones_MLX90393(FIL* fil, const char* filename, float x, float y, float z, uint64_t time){
+bool guardar_mediciones_mag_MLX90393(FIL* fil, const char* filename, float x, float y, float z, uint64_t time){
     if(!abrir_archivo(fil, filename)) return false;
-    if (f_printf(fil, "%.2f,%.2f,%.2f,%lld ms\n",
+    if (f_printf(fil, "%.2f,%.2f,%.2f,%lld\n",
         x, y, z, time) < 0) {
         printf("f_printf failed\n");
         blink_led(6, 200); // Error de escritura
@@ -66,4 +66,17 @@ bool guardar_mediciones_MLX90393(FIL* fil, const char* filename, float x, float 
     }
     if(!cerrar_archivo(fil)) return false;
     return true;   
+}
+
+bool guardar_mediciones_temp_MLX90393(FIL *fil, const char *filename, float t, uint64_t time)
+{
+    if(!abrir_archivo(fil, filename)) return false;
+    if (f_printf(fil, "%.2f,%lld\n",
+        t, time) < 0) {
+        printf("f_printf failed\n");
+        blink_led(6, 200); // Error de escritura
+        return false;
+    }
+    if(!cerrar_archivo(fil)) return false;
+    return true;  
 }

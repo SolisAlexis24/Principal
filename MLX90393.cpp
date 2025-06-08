@@ -44,13 +44,13 @@ bool MLX90393::init_sensor(uint16_t offset_x, uint16_t offset_y, uint16_t offset
     // 2. Se anade la nueva informacion de la ganancia ((uint16_t(gain) << 4) & 0x0070)
     uint16_t new_data = old_data & 0xFF8F | ((uint16_t(gain) << 4) & 0x0070);
 
-    printf("Sensor inicializado. Tiempo de adquisición mag : %u us\n", this->aquisition_time_mag);
-    printf("Sensor inicializado. Tiempo de adquisición temp : %u us\n", this->aquisition_time_temp);
+    printf("MLX90393 inicializado. Tiempo de adquisición mag : %u us\n", this->aquisition_time_mag);
+    printf("MLX90393 inicializado. Tiempo de adquisición temp : %u us\n", this->aquisition_time_temp);
 
     return true;
 }
 
-bool MLX90393::begin_measurement_mag(uint64_t begin_time){
+bool MLX90393::begin_measurement_mag(){
     // Iniciar medicion
     uint8_t cmd[1];   // Comando de lectura de medicion
     uint8_t read_buf[1]; // Buffer que guardara status
@@ -63,9 +63,9 @@ bool MLX90393::begin_measurement_mag(uint64_t begin_time){
     // Paso 2: Enviar repeated start y leer 1 byte (status)
     i2c_read_blocking(i2c_port_, ADDR, read_buf, 1, false);
 
-    if(read_buf[0] & 0x10){ printf("Error al iniciar la medición\n"); return false;}
+    if(read_buf[0] & 0x10){ printf("Error al iniciar la medición de magnetomero\n"); return false;}
 
-    this->last_measurement.time_ms = begin_time;
+
 
     return true;
 }
@@ -85,7 +85,7 @@ MLX90393::MLX90393Data MLX90393::read_measurement_mag(){
     i2c_read_blocking(i2c_port_, ADDR, read_buf, 7, false);
 
 
-    if(read_buf[0] & 0x10) { printf("Error al obtener los datos\n "); return MLX90393Data();}
+    if(read_buf[0] & 0x10) { printf("Error al obtener los datos del magnetometro\n"); return MLX90393Data();}
 
     uint16_t raw_x = (read_buf[1] << 8) | read_buf[2];
     uint16_t raw_y = (read_buf[3] << 8) | read_buf[4];
@@ -133,7 +133,7 @@ MLX90393::MLX90393Data MLX90393::read_measurement_mag(){
     return this->last_measurement;
 }
 
-bool MLX90393::begin_measurement_temp(uint64_t begin_time){
+bool MLX90393::begin_measurement_temp(){
     // Iniciar medicion
     uint8_t cmd[1];   // Comando de lectura de medicion
     uint8_t read_buf[3]; // Buffer que guardara status y las lecturas de T
@@ -148,9 +148,7 @@ bool MLX90393::begin_measurement_temp(uint64_t begin_time){
     i2c_read_blocking(i2c_port_, ADDR, read_buf, 1, false);
 
 
-    if(read_buf[0] & 0x10){ printf("Error al iniciar la medición\n"); return false;}
-
-    this->last_measurement.time_ms = begin_time;
+    if(read_buf[0] & 0x10){ printf("Error al iniciar la medición de temperatura\n"); return false;}
 
     return true;
 }
@@ -159,9 +157,6 @@ MLX90393::MLX90393Data MLX90393::read_measurement_temp(){
     // Iniciar medicion
     uint8_t cmd[1];   // Comando de lectura de medicion
     uint8_t read_buf[3]; // Buffer que guardara status y las lecturas de T
-
-    // Se espera hasta que se termine la medicion
-    sleep_ms(aquisition_time_temp);
 
     // Leer medicion
     cmd[0] = RM_T;
@@ -172,12 +167,97 @@ MLX90393::MLX90393Data MLX90393::read_measurement_temp(){
     // Paso 2. Enviar reapeted start y leer los datos en el orden status y T
     i2c_read_blocking(i2c_port_, ADDR, read_buf, 3, false);
 
-    if(read_buf[0] & 0x10) { printf("Error al obtener los datos\n "); return MLX90393Data();}
+    if(read_buf[0] & 0x10) { printf("Error al obtener los dato de temperaturas\n"); return MLX90393Data();}
 
     uint16_t raw_temp = (read_buf[1] << 8) | read_buf[2];
 
     this->last_measurement.t = 25 + (raw_temp - 46244.f)/45.2f;
 
+    return this->last_measurement;
+}
+
+bool MLX90393::begin_measurement_mt()
+{
+    // Iniciar medicion
+    uint8_t cmd[1];   // Comando de lectura de medicion
+    uint8_t read_buf[1]; // Buffer que guardara status
+
+    cmd[0] = SM_XYZT;
+
+    // Paso 1: Comando de una sola medicion cada que el master lo solicita
+    i2c_write_blocking(i2c_port_, ADDR, cmd, 1, true); // true: no enviar stop
+
+    // Paso 2: Enviar repeated start y leer 1 byte (status)
+    i2c_read_blocking(i2c_port_, ADDR, read_buf, 1, false);
+
+    if(read_buf[0] & 0x10){ printf("Error al iniciar la medición de magnetomero y termometro\n"); return false;}
+
+
+    return true;
+}
+
+MLX90393::MLX90393Data MLX90393::read_measurement_mt()
+{
+    uint8_t cmd[1];   // Comando de lectura de medicion
+    uint8_t read_buf[9]; // Buffer que guardara status y las lecturas de XYZT
+
+    // Leer medicion
+    cmd[0] = RM_XYZT;
+
+    // Paso 1. Enviar comando de lectura de XYZ
+    i2c_write_blocking(i2c_port_, ADDR, cmd, 1, true); // true: no enviar stop
+
+    // Paso 2. Enviar reapeted start y leer los datos en el orden status, T y XYZ
+    i2c_read_blocking(i2c_port_, ADDR, read_buf, 9, false);
+
+
+    if(read_buf[0] & 0x10) { printf("Error al obtener los datos del magnetometro y termometro\n"); return MLX90393Data();}
+
+    uint16_t raw_temp = (read_buf[1] << 8) | read_buf[2];
+    uint16_t raw_x = (read_buf[3] << 8) | read_buf[4];
+    uint16_t raw_y = (read_buf[5] << 8) | read_buf[6];
+    uint16_t raw_z = (read_buf[7] << 8) | read_buf[8];
+
+    switch (res_x_)
+    {
+        case RESOLUTION_MAX:
+        case RESOLUTION_HIGH:
+        this->last_measurement.x = int16_t(raw_x) * base_sens_x_ * gain_factor_ * (1 << (uint8_t)res_x_);
+            break;
+        case RESOLUTION_MEDIUM:
+        this->last_measurement.x = ((raw_x - 32768.f) * base_sens_x_ * gain_factor_ * (1 << (uint8_t)res_x_));
+            break;
+        case RESOLUTION_LOW: 
+        this->last_measurement.x = ((raw_x - 16384.f) * base_sens_x_ * gain_factor_ * (1 << (uint8_t)res_x_));
+    }
+
+    switch (res_y_)
+    {
+        case RESOLUTION_MAX:
+        case RESOLUTION_HIGH:
+        this->last_measurement.y = int16_t(raw_y) * base_sens_y_ * gain_factor_ * (1 << (uint8_t)res_y_);
+            break;
+        case RESOLUTION_MEDIUM:
+        this->last_measurement.y = ((raw_y - 32768.f) * base_sens_y_ * gain_factor_ * (1 << (uint8_t)res_y_));
+            break;
+        case RESOLUTION_LOW: 
+        this->last_measurement.y = ((raw_y - 16384.f) * base_sens_y_ * gain_factor_ * (1 << (uint8_t)res_y_));
+    }
+
+    switch (res_z_)
+    {
+        case RESOLUTION_MAX:
+        case RESOLUTION_HIGH:
+        this->last_measurement.z = int16_t(raw_z) * base_sens_z_ * gain_factor_ * (1 << (uint8_t)res_z_);
+            break;
+        case RESOLUTION_MEDIUM:
+        this->last_measurement.z = ((raw_z - 32768.f) * base_sens_z_ * gain_factor_ * (1 << (uint8_t)res_z_));
+            break;
+        case RESOLUTION_LOW: 
+        this->last_measurement.z = ((raw_z - 16384.f) * base_sens_z_ * gain_factor_ * (1 << (uint8_t)res_z_));
+    }
+
+    this->last_measurement.t = 25 + (raw_temp - 46244.f)/45.2f;
     return this->last_measurement;
 }
 
