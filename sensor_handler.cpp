@@ -80,3 +80,16 @@ bool guardar_mediciones_temp_MLX90393(FIL *fil, const char *filename, float t, u
     if(!cerrar_archivo(fil)) return false;
     return true;  
 }
+
+bool guardar_mediciones_MS5003(FIL *fil, const char *filename, float t, float p, uint64_t time)
+{
+    if(!abrir_archivo(fil, filename)) return false;
+    if (f_printf(fil, "%.2f,%.2f,%lld\n",
+        t,p, time) < 0) {
+        printf("f_printf failed\n");
+        blink_led(6, 200); // Error de escritura
+        return false;
+    }
+    if(!cerrar_archivo(fil)) return false;
+    return true;  
+}

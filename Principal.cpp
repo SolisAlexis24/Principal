@@ -12,6 +12,7 @@
 #include "sensor_handler.h"
 #include "LSM9DS1.h"
 #include "MLX90393.h"
+#include "MS5803-14BA.h"
 
 #define SDA_PIN 16
 #define SCL_PIN 17
@@ -29,6 +30,12 @@ bool capturar10ms(__unused struct repeating_timer *t);
  */
 bool capturar10s(__unused struct repeating_timer *t);
 
+/**
+ * @brief Función que se ejecuta cuando se recibe una alarma para leer el sensor MS5803.
+ *        Dependiendo del valor de eval_var, se decide si se lee la temperatura o la presión.
+ */
+int64_t get_ms5803(alarm_id_t id, __unused void *userdata);
+
 i2c_inst_t* i2c_port = i2c0;
 
 // Tarjeta SD
@@ -44,11 +51,13 @@ volatile int64_t safe_elapsed_ms_c1;
 // Inicializacion de comunicacion con los sensores
 LSM9DS1 lsm(i2c_port,SDA_PIN, SCL_PIN, I2C_FREC);
 MLX90393 mlx(i2c_port,SDA_PIN, SCL_PIN, I2C_FREC);
+MS5803 ms5803(i2c_port, SDA_PIN, SCL_PIN, I2C_FREC);
 
 // Variables globales para los sensores
 SensorHandler LSM_handler;
 SensorHandler MLX_mag_handler;
 SensorHandler MLX_temp_handler;
+SensorHandler MS5803_handler;
 
 mutex_t time_mutex; // Mutex para proteger el acceso a las variables de tiempo
 mutex_t i2c_mutex; // Mutex para proteger el acceso al bus I2C
@@ -90,7 +99,7 @@ int main() {
     }
     //=========================================================================================================================
     // Puntero al archivo
-    FIL LSM_file, MLX_mag_file, MLX_temp_file;
+    FIL LSM_file, MLX_mag_file, MLX_temp_file, MS_file;
 
     LSM_handler = (SensorHandler){
         .is_connected = false,
@@ -107,8 +116,7 @@ int main() {
         .buffer_head = 0,
         .buffer_tail = 0,
         .buffer_full = false,
-        .fire_measurement = false, // Inicialmente no ha pasado el tiempo para medir
-        .is_mag_first_time = true, // Inicialmente no hay datos de magnetometro listos
+        .is_var0_first_time = true, // Inicialmente no hay datos de magnetometro listos
     };
     MLX_temp_handler = (SensorHandler){
         .is_connected = false,
@@ -117,8 +125,17 @@ int main() {
         .buffer_head = 0,
         .buffer_tail = 0,
         .buffer_full = false,
-        .fire_measurement = false, // Inicialmente no ha pasado el tiempo para medir
-        .is_temp_first_time = true, // Inicialmente no hay datos de temperatura listos
+    };
+    MS5803_handler = (SensorHandler){
+        .is_connected = false,
+        .filename = "MS5803.csv",
+        .file = &MS_file,
+        .buffer_head = 0,
+        .buffer_tail = 0,
+        .buffer_full = false,
+        .is_var0_first_time = true,  // Indica que es la primera vez que se inicia lectura de temperatura
+        .is_var1_first_time = true,   // Indica que es la primera vez que se inicia lectura de presion
+        .eval_var = false               //Indica que variable se mando a medir -> 0 para temperatura y 1 para presion
     };
     //=================================================Inicializacion imu=================================================
     if(lsm.init_accel(
@@ -187,6 +204,28 @@ int main() {
     }
     //========================================================================================================================================
     
+    if(ms5803.init(
+        MS5803::T_OSR_4096,
+        MS5803::P_OSR_4096 ,
+        MS5803::ADDRESS_HIGH
+    )){
+        if(abrir_archivo(MS5803_handler.file, MS5803_handler.filename)){
+            if (f_printf(MS5803_handler.file, "T[C],P[mbar],t[ms]\n") < 0) {
+                printf("f_printf failed\n");
+                blink_led(6, 200); // Error de escritura
+                return false;
+            }       
+        }
+        if (!cerrar_archivo(MS5803_handler.file)) {
+            while (1);  // Manejo de error
+        }
+        MS5803_handler.is_connected = true;
+    }
+    else{
+        MS5803_handler.is_connected = false;
+    }
+
+
     // Interrupcion para leer los sensores cada 10 ms
     struct repeating_timer timer_c_0;
     add_repeating_timer_ms(10, capturar10ms, NULL, &timer_c_0);
@@ -285,14 +324,14 @@ bool capturar10ms(__unused repeating_timer *t)
 
     //==================================Leer MLX90393 (magnetometro y termometro solo leer)==================================
     if(is_connected(&MLX_mag_handler)){
-        if (MLX_mag_handler.is_mag_first_time) {
+        if (MLX_mag_handler.is_var0_first_time) {
             // Si no hay datos listos, simplemente comenzamos una nueva medición
             // Esto asegura que siempre estemos listos para la próxima medición
             mutex_enter_blocking(&i2c_mutex);
             mlx.begin_measurement_mt();
             mutex_exit(&i2c_mutex);
             mlx.last_measurement.time_ms = safe_elapsed_ms_c0;
-            MLX_mag_handler.is_mag_first_time = false;
+            MLX_mag_handler.is_var0_first_time = false;
         } else {
             // 1. Leer y guardar los datos en el buffer
             mutex_enter_blocking(&i2c_mutex);
@@ -301,7 +340,9 @@ bool capturar10ms(__unused repeating_timer *t)
             guardar_en_buffer(MLX_mag_handler.mlx_buffer, MLX_mag_handler.buffer_head, 
                 MLX_mag_handler.buffer_tail, BUFFER_SIZE, MLX_mag_handler.buffer_full, mlx.last_measurement);
             // 2. Comenzar una nueva medición para el siguiente ciclo
+            mutex_enter_blocking(&i2c_mutex);
             mlx.begin_measurement_mt();     
+            mutex_exit(&i2c_mutex);
             mlx.last_measurement.time_ms = safe_elapsed_ms_c0;
         }
     }
@@ -325,7 +366,7 @@ void core1_main() {
                 MLX_temp_handler.mlx_current = MLX_temp_handler.mlx_buffer[MLX_temp_handler.buffer_tail];
                 MLX_temp_handler.buffer_tail = (MLX_temp_handler.buffer_tail + 1) % BUFFER_SIZE;
                 MLX_temp_handler.buffer_full = false;
-                restore_interrupts(save);
+                restore_interrupts_from_disabled(save);
                 mutex_enter_blocking(&spi_mutex);
                 if (!guardar_mediciones_temp_MLX90393(MLX_temp_handler.file, MLX_temp_handler.filename, MLX_temp_handler.mlx_current.t, MLX_temp_handler.mlx_current.time_ms/1000)) {
                     printf("Error al guardar mediciones de temperatura MLX90393\n");
@@ -333,6 +374,20 @@ void core1_main() {
                 mutex_exit(&spi_mutex);
             } 
         } 
+        if(is_connected(&MS5803_handler)){
+            if(buffer_has_elements(&MS5803_handler)){
+                uint32_t save = save_and_disable_interrupts();
+                MS5803_handler.ms5803_current = MS5803_handler.ms_buffer[MS5803_handler.buffer_tail];
+                MS5803_handler.buffer_tail = (MS5803_handler.buffer_tail + 1) % BUFFER_SIZE;
+                MS5803_handler.buffer_full = false;
+                restore_interrupts_from_disabled(save);
+                mutex_enter_blocking(&spi_mutex);
+                if(!guardar_mediciones_MS5003(MS5803_handler.file, MS5803_handler.filename, MS5803_handler.ms5803_current.temperature, MS5803_handler.ms5803_current.pressure, MS5803_handler.ms5803_current.time_ms/1000)){
+                    printf("Error al guardar mediciones de temperatura MS5803\n");
+                }
+                mutex_exit(&spi_mutex);
+            }
+        }
     }
 
 }
@@ -353,5 +408,46 @@ bool capturar10s(__unused repeating_timer *t){
     }
     //========================================================================================================
 
+    if(is_connected(&MS5803_handler)){
+        if(MS5803_handler.is_var0_first_time){                              // Es la primera vez que se mide cualquiera de las dos
+            mutex_enter_blocking(&i2c_mutex);
+            ms5803.start_measurement_temp();
+            mutex_exit(&i2c_mutex);
+            MS5803_handler.eval_var = false;                                // Se esta midiendo la temperatura
+            ms5803.last_measurement.time_ms = safe_elapsed_ms_c1;
+            MS5803_handler.is_var0_first_time = false;
+            add_alarm_in_ms(ms5803.aquisition_time + 3, get_ms5803, NULL, false);       // Se lanza la alarma para guardar medicion de temperatura
+        }
+        else{ 
+            mutex_enter_blocking(&i2c_mutex);
+            ms5803.start_measurement_temp();                                // Se esta midiendo temperatura
+            mutex_exit(&i2c_mutex); 
+            MS5803_handler.eval_var = false;                                // Se esta midiendo temperatura
+            ms5803.last_measurement.time_ms = safe_elapsed_ms_c1;    
+            add_alarm_in_ms(ms5803.aquisition_time + 3, get_ms5803, NULL, false);      // Se lanza la alarma para guardar medicion de temperatura
+        }
+    }
+
     return true;
+}
+
+int64_t get_ms5803(alarm_id_t id, __unused void *userdata){
+    if(MS5803_handler.eval_var){            // En este bloque se guarda la medicion de la presion
+        mutex_enter_blocking(&i2c_mutex);
+        ms5803.read_measurement_press();    // Se lee la medicion de la presion   
+        mutex_exit(&i2c_mutex);            
+        MS5803_handler.eval_var = false;    // Para la siguiente ocasion se medira temperatura
+        guardar_en_buffer(MS5803_handler.ms_buffer, MS5803_handler.buffer_head, 
+        MS5803_handler.buffer_tail, BUFFER_SIZE, MS5803_handler.buffer_full, ms5803.last_measurement); // Guarda en buffer
+        return 0;        // Desactiva la alarma
+    }
+    else{                                   // En este bloque se guarda la medicion de la temperatura
+        mutex_enter_blocking(&i2c_mutex);
+        ms5803.read_measurement_temp();     // Se lee la medicion de la temperatura
+
+        ms5803.start_measurement_press();   // Se comienza la medicion de la presion
+        mutex_exit(&i2c_mutex);
+        MS5803_handler.eval_var = true;     // Se esta midiendo presion
+        return (ms5803.aquisition_time + 3) * 1000;     // La alarma se activara en 13 ms de nuevo para guardar presion
+    }
 }

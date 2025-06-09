@@ -3,6 +3,7 @@
 #include "f_util.h"
 #include "LSM9DS1.h"
 #include "MLX90393.h"
+#include "MS5803-14BA.h"
 
 #define BUFFER_SIZE 32
 #define LED_PIN 25  // LED integrado de la Pico
@@ -19,22 +20,22 @@ typedef struct {
     union { // Estructura que contiene el buffer de datos
         LSM9DS1::LSM9DS1Data lsm_buffer[BUFFER_SIZE];
         MLX90393::MLX90393Data mlx_buffer[BUFFER_SIZE];
+        MS5803::MS5803Data ms_buffer[BUFFER_SIZE];
+
     };
     union {     // Estructura que contiene los datos de la ultima medicion
         LSM9DS1::LSM9DS1Data lsm_current;
         MLX90393::MLX90393Data mlx_current;
+        MS5803::MS5803Data ms5803_current;
     };
     // Estas variables se deben de modificar manualmente por la falta del pin de interrupcion
-    union{
-        bool is_mag_first_time; // Variable que indica que la medicion del magnetrometro esta lista
-        bool is_temp_first_time; // Variable que indica que la medicion del termometro esta lista
-    };
-} SensorHandler;
 
-typedef struct {
-    MLX90393::MLX90393Data* mlx_temp_current;  // Puntero a los datos de temperatura
-    // Aquí puedes añadir más campos en el futuro
-} SensorData;
+        bool is_var0_first_time; // Variable que indica que la medicion del magnetrometro esta lista
+        bool is_var1_first_time; // Variable que indica que la medicion del termometro esta lista
+
+        bool eval_var;
+
+} SensorHandler;
 
 /**
  * @brief Verifica si el sensor esta conectado
@@ -101,6 +102,9 @@ bool guardar_mediciones_mag_MLX90393(FIL* fil, const char* filename, float x, fl
  * @return true si se guardaron los datos correctamente, false en caso contrario
  */
 bool guardar_mediciones_temp_MLX90393(FIL* fil, const char* filename, float t, uint64_t time);
+
+
+bool guardar_mediciones_MS5003(FIL* fil, const char* filename, float t, float p, uint64_t time);
 
 template<typename T>
 void guardar_en_buffer(T* buffer, uint8_t& head, uint8_t tail, int buffer_size, bool& buffer_full, const T& medicion) {

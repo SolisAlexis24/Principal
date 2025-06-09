@@ -39,7 +39,8 @@ add_executable(Principal Principal.cpp
                 hw_config.c
                 sensor_handler.cpp
                 LSM9DS1.cpp
-                MLX90393.cpp)
+                MLX90393.cpp
+                MS5803-14BA.cpp)
 
 pico_set_program_name(Principal "Principal")
 pico_set_program_version(Principal "0.1")
