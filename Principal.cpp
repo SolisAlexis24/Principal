@@ -48,20 +48,20 @@ volatile int64_t elapsed_ms;          // Tiempo actual menos tiempo inicial
 volatile int64_t safe_elapsed_ms_c0;    
 volatile int64_t safe_elapsed_ms_c1;
 
+mutex_t time_mutex; // Mutex para proteger el acceso a las variables de tiempo
+mutex_t i2c_mutex; // Mutex para proteger el acceso al bus I2C
+mutex_t spi_mutex; // Mutex para proteger el acceso al bus SPI
+
 // Inicializacion de comunicacion con los sensores
-LSM9DS1 lsm(i2c_port,SDA_PIN, SCL_PIN, I2C_FREC);
-MLX90393 mlx(i2c_port,SDA_PIN, SCL_PIN, I2C_FREC);
-MS5803 ms5803(i2c_port, SDA_PIN, SCL_PIN, I2C_FREC);
+LSM9DS1 lsm(i2c_port,SDA_PIN, SCL_PIN, I2C_FREC, &i2c_mutex);
+MLX90393 mlx(i2c_port,SDA_PIN, SCL_PIN, I2C_FREC, &i2c_mutex);
+MS5803 ms5803(i2c_port, SDA_PIN, SCL_PIN, I2C_FREC, &i2c_mutex);
 
 // Variables globales para los sensores
 SensorHandler LSM_handler;
 SensorHandler MLX_mag_handler;
 SensorHandler MLX_temp_handler;
 SensorHandler MS5803_handler;
-
-mutex_t time_mutex; // Mutex para proteger el acceso a las variables de tiempo
-mutex_t i2c_mutex; // Mutex para proteger el acceso al bus I2C
-mutex_t spi_mutex; // Mutex para proteger el acceso al bus SPI
 
 int main() {
     mutex_init(&time_mutex);
@@ -299,11 +299,9 @@ bool capturar10ms(__unused repeating_timer *t)
     
     //===================================Leer LSM9DS1===================================
     if(is_connected(&LSM_handler)){
-        mutex_enter_blocking(&i2c_mutex);
         lsm.read_accelerometer();
         lsm.read_gyroscope();
         lsm.read_magnetometer();
-        mutex_exit(&i2c_mutex);
         mutex_enter_blocking(&time_mutex);
         lsm.last_measurement.time_ms = safe_elapsed_ms_c0;
         mutex_exit(&time_mutex);
@@ -327,22 +325,16 @@ bool capturar10ms(__unused repeating_timer *t)
         if (MLX_mag_handler.is_var0_first_time) {
             // Si no hay datos listos, simplemente comenzamos una nueva medición
             // Esto asegura que siempre estemos listos para la próxima medición
-            mutex_enter_blocking(&i2c_mutex);
             mlx.begin_measurement_mt();
-            mutex_exit(&i2c_mutex);
             mlx.last_measurement.time_ms = safe_elapsed_ms_c0;
             MLX_mag_handler.is_var0_first_time = false;
         } else {
             // 1. Leer y guardar los datos en el buffer
-            mutex_enter_blocking(&i2c_mutex);
             mlx.read_measurement_mt();
-            mutex_exit(&i2c_mutex);
             guardar_en_buffer(MLX_mag_handler.mlx_buffer, MLX_mag_handler.buffer_head, 
                 MLX_mag_handler.buffer_tail, BUFFER_SIZE, MLX_mag_handler.buffer_full, mlx.last_measurement);
             // 2. Comenzar una nueva medición para el siguiente ciclo
-            mutex_enter_blocking(&i2c_mutex);
             mlx.begin_measurement_mt();     
-            mutex_exit(&i2c_mutex);
             mlx.last_measurement.time_ms = safe_elapsed_ms_c0;
         }
     }
@@ -410,18 +402,14 @@ bool capturar10s(__unused repeating_timer *t){
 
     if(is_connected(&MS5803_handler)){
         if(MS5803_handler.is_var0_first_time){                              // Es la primera vez que se mide cualquiera de las dos
-            mutex_enter_blocking(&i2c_mutex);
             ms5803.start_measurement_temp();
-            mutex_exit(&i2c_mutex);
             MS5803_handler.eval_var = false;                                // Se esta midiendo la temperatura
             ms5803.last_measurement.time_ms = safe_elapsed_ms_c1;
             MS5803_handler.is_var0_first_time = false;
             add_alarm_in_ms(ms5803.aquisition_time + 3, get_ms5803, NULL, false);       // Se lanza la alarma para guardar medicion de temperatura
         }
         else{ 
-            mutex_enter_blocking(&i2c_mutex);
             ms5803.start_measurement_temp();                                // Se esta midiendo temperatura
-            mutex_exit(&i2c_mutex); 
             MS5803_handler.eval_var = false;                                // Se esta midiendo temperatura
             ms5803.last_measurement.time_ms = safe_elapsed_ms_c1;    
             add_alarm_in_ms(ms5803.aquisition_time + 3, get_ms5803, NULL, false);      // Se lanza la alarma para guardar medicion de temperatura
@@ -433,20 +421,16 @@ bool capturar10s(__unused repeating_timer *t){
 
 int64_t get_ms5803(alarm_id_t id, __unused void *userdata){
     if(MS5803_handler.eval_var){            // En este bloque se guarda la medicion de la presion
-        mutex_enter_blocking(&i2c_mutex);
-        ms5803.read_measurement_press();    // Se lee la medicion de la presion   
-        mutex_exit(&i2c_mutex);            
+        ms5803.read_measurement_press();    // Se lee la medicion de la presion          
         MS5803_handler.eval_var = false;    // Para la siguiente ocasion se medira temperatura
         guardar_en_buffer(MS5803_handler.ms_buffer, MS5803_handler.buffer_head, 
         MS5803_handler.buffer_tail, BUFFER_SIZE, MS5803_handler.buffer_full, ms5803.last_measurement); // Guarda en buffer
         return 0;        // Desactiva la alarma
     }
     else{                                   // En este bloque se guarda la medicion de la temperatura
-        mutex_enter_blocking(&i2c_mutex);
         ms5803.read_measurement_temp();     // Se lee la medicion de la temperatura
 
         ms5803.start_measurement_press();   // Se comienza la medicion de la presion
-        mutex_exit(&i2c_mutex);
         MS5803_handler.eval_var = true;     // Se esta midiendo presion
         return (ms5803.aquisition_time + 3) * 1000;     // La alarma se activara en 13 ms de nuevo para guardar presion
     }

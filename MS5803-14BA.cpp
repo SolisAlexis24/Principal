@@ -2,8 +2,8 @@
 #include "MS5803-14BA.h"
 
 
-MS5803::MS5803(i2c_inst_t *i2c_port, uint sda_pin, uint scl_pin, uint i2c_freq):
-        i2c_port_(i2c_port), sda_pin_(sda_pin), scl_pin_(scl_pin), i2c_freq_(i2c_freq),
+MS5803::MS5803(i2c_inst_t *i2c_port, uint sda_pin, uint scl_pin, uint i2c_freq, mutex_t* i2c_mutex):
+        i2c_port_(i2c_port), sda_pin_(sda_pin), scl_pin_(scl_pin), i2c_freq_(i2c_freq), i2c_mutex_(i2c_mutex),
         default_press_osr(P_OSR_256), default_temp_osr(T_OSR_256)
 {
 }
@@ -58,11 +58,14 @@ bool MS5803::start_measurement_temp(TemperatureOSR t_osr){
 
     cmd[0] = (uint8_t)t_osr;
 
+    mutex_enter_blocking(i2c_mutex_); // Asegurar acceso exclusivo al bus I2C
     // Enviar comando de conversion de temperatura
     if(i2c_write_blocking(i2c_port_, ADDR, cmd, 1, false) != 1){
         printf("Error al escribir el comando de inicio de conversion de temperatura\n");
+        mutex_exit(i2c_mutex_); // Liberar el mutex para permitir otras operaciones I2C
         return false;
     } 
+    mutex_exit(i2c_mutex_); // Liberar el mutex para permitir otras operaciones I2C
     return true;
 }
 
@@ -71,17 +74,23 @@ uint32_t MS5803::poll_measurement(){
     uint8_t cmd[1] = {R_ADC};   // Comando de lectura de ADC
     uint8_t read_buf[3];        // Buffer para almacenar lecturas
 
+    mutex_enter_blocking(i2c_mutex_); // Asegurar acceso exclusivo al bus I2C
     // Paso 1: Enviar comando de lectura del ADC de temperatura
     if(i2c_write_blocking(i2c_port_, ADDR, cmd, 1, false) != 1){
         printf("Error al escribir el comando de inicio de lectura de temperatura\n");
+        mutex_exit(i2c_mutex_); // Liberar el mutex para permitir otras operaciones I2C
         return 0;
     } 
-
+    mutex_exit(i2c_mutex_); // Liberar el mutex para permitir otras operaciones I2C
+    
+    mutex_enter_blocking(i2c_mutex_); // Asegurar acceso exclusivo al bus I2C
     // Paso 2: Leer 3 bytes de datos de temperatura
     if(i2c_read_blocking(i2c_port_, ADDR, read_buf, 3, false) != 3){
         printf("Error al obtener los datos de la temperatura");
+        mutex_exit(i2c_mutex_); // Liberar el mutex para permitir otras operaciones I2C
         return 0;
     }
+    mutex_exit(i2c_mutex_); // Liberar el mutex para permitir otras operaciones I2C
     // read_buf[0] = Data 16-23
     // read_buf[1] = Data 8-15
     // read_buf[2] = Data 0-7
@@ -128,11 +137,14 @@ bool MS5803::start_measurement_press(PressureOSR p_osr){
 
     cmd[0] = (uint8_t)p_osr;
 
+    mutex_enter_blocking(i2c_mutex_); // Asegurar acceso exclusivo al bus I2C
     // Enviar comando de conversion de temperatura
     if(i2c_write_blocking(i2c_port_, ADDR, cmd, 1, false) != 1){
         printf("Error al escribir el comando de inicio de conversion de presion\n");
+        mutex_exit(i2c_mutex_); // Liberar el mutex para permitir otras operaciones I2C
         return false;
     } 
+    mutex_exit(i2c_mutex_); // Liberar el mutex para permitir otras operaciones I2C
     return true;  
 }
 

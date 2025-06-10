@@ -4,7 +4,7 @@
 #include "pico/stdlib.h"
 #include "hardware/i2c.h"
 #include "math.h"
-#include <stdexcept>
+#include "pico/mutex.h"
 
 /**
  * @brief Clase para manejar el sensor LSM9DS1 (Acelerómetro, Giroscopio y Magnetómetro)
@@ -72,7 +72,7 @@ public:
      * @param scl_pin Pin SCL (por defecto GPIO 17)
      * @param i2c_freq Frecuencia I2C (por defecto 400 kHz)
      */
-    LSM9DS1(i2c_inst_t* i2c_port, uint sda_pin, uint scl_pin, uint i2c_freq);
+    LSM9DS1(i2c_inst_t* i2c_port, uint sda_pin, uint scl_pin, uint i2c_freq, mutex_t* i2c_mutex = nullptr);
     
     /**
      * @brief Inicializa el acelerómetro y giroscopio
@@ -166,6 +166,7 @@ private:
     uint sda_pin_;
     uint scl_pin_;
     uint i2c_freq_;
+    mutex_t* i2c_mutex_; // Mutex para proteger el acceso al bus I2C
     
     float gyro_scale_factor_;
     float accel_scale_factor_;

@@ -10,9 +10,9 @@
  * @param scl_pin Pin GPIO para SCL
  * @param i2c_freq Frecuencia I2C en Hz (por defecto 400kHz)
  */
-LSM9DS1::LSM9DS1(i2c_inst_t* i2c_port, uint sda_pin, uint scl_pin, uint i2c_freq) 
+LSM9DS1::LSM9DS1(i2c_inst_t* i2c_port, uint sda_pin, uint scl_pin, uint i2c_freq, mutex_t* i2c_mutex) 
     : i2c_port_(i2c_port), sda_pin_(sda_pin), scl_pin_(scl_pin), i2c_freq_(i2c_freq),
-      gyro_scale_factor_(0), accel_scale_factor_(0), mag_scale_factor_(0) {
+      gyro_scale_factor_(0), accel_scale_factor_(0), mag_scale_factor_(0), i2c_mutex_(i2c_mutex) {
 }
 
 /**
@@ -222,7 +222,9 @@ uint8_t LSM9DS1::read_register(uint8_t addr, uint8_t reg) {
  */
 void LSM9DS1::write_register(uint8_t addr, uint8_t reg, uint8_t val) {
     uint8_t buf[2] = {reg, val};
+    mutex_enter_blocking(i2c_mutex_); // Asegurar acceso exclusivo al bus I2C
     i2c_write_blocking(i2c_port_, addr, buf, 2, false);
+    mutex_exit(i2c_mutex_); // Liberar acceso al bus I2C
 }
 
 /**

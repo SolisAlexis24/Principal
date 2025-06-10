@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include "pico/stdlib.h"
 #include "hardware/i2c.h"
+#include "pico/mutex.h"
 #include "math.h"
 
 /**
@@ -56,7 +57,7 @@ public:
      * @param scl_pin Pin SCL (por defecto GPIO 17)
      * @param i2c_freq Frecuencia I2C (por defecto 400 kHz)
      */
-    MS5803(i2c_inst_t* i2c_port, uint sda_pin, uint scl_pin, uint i2c_freq);
+    MS5803(i2c_inst_t* i2c_port, uint sda_pin, uint scl_pin, uint i2c_freq, mutex_t* i2c_mutex = nullptr);
 
     /**
      * @brief Metodo que inicializa el sensor. Resetea su memoria y lee los valores del
@@ -188,6 +189,7 @@ private:
     uint sda_pin_;
     uint scl_pin_;
     uint i2c_freq_;
+    mutex_t *i2c_mutex_; // Mutex para asegurar acceso exclusivo al bus I2C
 
     /**
      * @brief Funcion que sirve para leer los valores del fabricante desde la PROM.

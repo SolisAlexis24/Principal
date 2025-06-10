@@ -1,8 +1,7 @@
 #include "MLX90393.h"
 
-MLX90393::MLX90393(i2c_inst_t *i2c_port, uint sda_pin, uint scl_pin, uint i2c_freq)
-        : i2c_port_(i2c_port), sda_pin_(sda_pin), scl_pin_(scl_pin), i2c_freq_(i2c_freq) {
-        // Inicializar hardware I2C
+MLX90393::MLX90393(i2c_inst_t *i2c_port, uint sda_pin, uint scl_pin, uint i2c_freq, mutex_t* i2c_mutex)
+        : i2c_port_(i2c_port), sda_pin_(sda_pin), scl_pin_(scl_pin), i2c_freq_(i2c_freq), i2c_mutex_(i2c_mutex) {
 }
 
 bool MLX90393::init_sensor(uint16_t offset_x, uint16_t offset_y, uint16_t offset_z,
@@ -57,11 +56,13 @@ bool MLX90393::begin_measurement_mag(){
 
     cmd[0] = SM_XYZ;
 
+    mutex_enter_blocking(i2c_mutex_); // Asegurar acceso exclusivo al bus I2C
     // Paso 1: Comando de una sola medicion cada que el master lo solicita
     i2c_write_blocking(i2c_port_, ADDR, cmd, 1, true); // true: no enviar stop
 
     // Paso 2: Enviar repeated start y leer 1 byte (status)
     i2c_read_blocking(i2c_port_, ADDR, read_buf, 1, false);
+    mutex_exit(i2c_mutex_); // Liberar el mutex para permitir otras operaciones I2C
 
     if(read_buf[0] & 0x10){ printf("Error al iniciar la medición de magnetomero\n"); return false;}
 
@@ -78,11 +79,13 @@ MLX90393::MLX90393Data MLX90393::read_measurement_mag(){
     // Leer medicion
     cmd[0] = RM_XYZ;
 
+    mutex_enter_blocking(i2c_mutex_); // Asegurar acceso exclusivo al bus I2C
     // Paso 1. Enviar comando de lectura de XYZ
     i2c_write_blocking(i2c_port_, ADDR, cmd, 1, true); // true: no enviar stop
 
     // Paso 2. Enviar reapeted start y leer los datos en el orden status y XYZ
     i2c_read_blocking(i2c_port_, ADDR, read_buf, 7, false);
+    mutex_exit(i2c_mutex_); // Liberar el mutex para permitir otras operaciones I2C
 
 
     if(read_buf[0] & 0x10) { printf("Error al obtener los datos del magnetometro\n"); return MLX90393Data();}
@@ -141,11 +144,13 @@ bool MLX90393::begin_measurement_temp(){
 
     cmd[0] = SM_T;
 
+    mutex_enter_blocking(i2c_mutex_); // Asegurar acceso exclusivo al bus I2C
     // Paso 1: Comando de una sola medicion cada que el master lo solicita
     i2c_write_blocking(i2c_port_, ADDR, cmd, 1, true); // true: no enviar stop
 
     // Paso 2: Enviar repeated start y leer 1 byte (status)
     i2c_read_blocking(i2c_port_, ADDR, read_buf, 1, false);
+    mutex_exit(i2c_mutex_); // Liberar el mutex para permitir otras operaciones I2C
 
 
     if(read_buf[0] & 0x10){ printf("Error al iniciar la medición de temperatura\n"); return false;}
@@ -161,11 +166,13 @@ MLX90393::MLX90393Data MLX90393::read_measurement_temp(){
     // Leer medicion
     cmd[0] = RM_T;
 
+    mutex_enter_blocking(i2c_mutex_); // Asegurar acceso exclusivo al bus I2C
     // Paso 1. Enviar comando de lectura de T
     i2c_write_blocking(i2c_port_, ADDR, cmd, 1, true); // true: no enviar stop
 
     // Paso 2. Enviar reapeted start y leer los datos en el orden status y T
     i2c_read_blocking(i2c_port_, ADDR, read_buf, 3, false);
+    mutex_exit(i2c_mutex_); // Liberar el mutex para permitir otras operaciones I2C
 
     if(read_buf[0] & 0x10) { printf("Error al obtener los dato de temperaturas\n"); return MLX90393Data();}
 
@@ -184,11 +191,13 @@ bool MLX90393::begin_measurement_mt()
 
     cmd[0] = SM_XYZT;
 
+    mutex_enter_blocking(i2c_mutex_); // Asegurar acceso exclusivo al bus I2C
     // Paso 1: Comando de una sola medicion cada que el master lo solicita
     i2c_write_blocking(i2c_port_, ADDR, cmd, 1, true); // true: no enviar stop
 
     // Paso 2: Enviar repeated start y leer 1 byte (status)
     i2c_read_blocking(i2c_port_, ADDR, read_buf, 1, false);
+    mutex_exit(i2c_mutex_); // Liberar el mutex para permitir otras operaciones I2C
 
     if(read_buf[0] & 0x10){ printf("Error al iniciar la medición de magnetomero y termometro\n"); return false;}
 
@@ -204,11 +213,13 @@ MLX90393::MLX90393Data MLX90393::read_measurement_mt()
     // Leer medicion
     cmd[0] = RM_XYZT;
 
+    mutex_enter_blocking(i2c_mutex_); // Asegurar acceso exclusivo al bus I2C
     // Paso 1. Enviar comando de lectura de XYZ
     i2c_write_blocking(i2c_port_, ADDR, cmd, 1, true); // true: no enviar stop
 
     // Paso 2. Enviar reapeted start y leer los datos en el orden status, T y XYZ
     i2c_read_blocking(i2c_port_, ADDR, read_buf, 9, false);
+    mutex_exit(i2c_mutex_); // Liberar el mutex para permitir otras operaciones I2C
 
 
     if(read_buf[0] & 0x10) { printf("Error al obtener los datos del magnetometro y termometro\n"); return MLX90393Data();}

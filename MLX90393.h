@@ -1,6 +1,7 @@
 #pragma once
 #include "hardware/i2c.h"
 #include "pico/stdlib.h"
+#include "pico/mutex.h"
 #include <math.h>
 #include <stdio.h>
 
@@ -54,7 +55,7 @@ public:
     /**
      * @brief Constructor de la clase, especifica el canal de I2C con el que se trabajara
      */
-    MLX90393(i2c_inst_t* i2c_port = i2c0, uint sda_pin = 16, uint scl_pin = 17, uint i2c_freq = 400000);
+    MLX90393(i2c_inst_t* i2c_port = i2c0, uint sda_pin = 16, uint scl_pin = 17, uint i2c_freq = 400000, mutex_t* i2c_mutex = nullptr);
 
     /**
      * @brief Inicializador del sensor
@@ -155,6 +156,7 @@ private:
     uint sda_pin_;
     uint scl_pin_;
     uint i2c_freq_;
+    mutex_t* i2c_mutex_;
     float base_sens_x_, base_sens_y_, base_sens_z_;
     RES res_x_, res_y_, res_z_;
     float gain_factor_;
