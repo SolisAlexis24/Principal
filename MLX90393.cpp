@@ -49,7 +49,7 @@ bool MLX90393::init_sensor(uint16_t offset_x, uint16_t offset_y, uint16_t offset
     return true;
 }
 
-bool MLX90393::begin_measurement_mag(){
+bool MLX90393::start_measurement_mag(){
     // Iniciar medicion
     uint8_t cmd[1];   // Comando de lectura de medicion
     uint8_t read_buf[1]; // Buffer que guardara status
@@ -136,7 +136,7 @@ MLX90393::MLX90393Data MLX90393::read_measurement_mag(){
     return this->last_measurement;
 }
 
-bool MLX90393::begin_measurement_temp(){
+bool MLX90393::start_measurement_temp(){
     // Iniciar medicion
     uint8_t cmd[1];   // Comando de lectura de medicion
     uint8_t read_buf[3]; // Buffer que guardara status y las lecturas de T

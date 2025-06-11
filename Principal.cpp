@@ -168,9 +168,9 @@ int main() {
     //=============================================Inicializacion magnetometro y termometro=============================================
     if(mlx.init_sensor(
         0x8000, 0x8000, 0x8000,      // Offsets X,Y,Z
-        MLX90393::RESOLUTION_MAX,   // Resolución X
-        MLX90393::RESOLUTION_MAX,   // Resolución Y
-        MLX90393::RESOLUTION_MAX,   // Resolución Z
+        MLX90393::RESOLUTION_MAX,   // Resolucion X
+        MLX90393::RESOLUTION_MAX,   // Resolucion Y
+        MLX90393::RESOLUTION_MAX,   // Resolucion Z
         MLX90393::FILT_1,           // Filtro digital
         MLX90393::OSR_MAX         // Oversampling
     )){

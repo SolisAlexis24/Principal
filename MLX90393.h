@@ -11,8 +11,8 @@ public:
     enum RES {
         RESOLUTION_MAX    = 0,      // +- 2^15 (Complemento a dos)
         RESOLUTION_HIGH = 1,        // +- 2^15 (Complemento a dos)
-        RESOLUTION_MEDIUM   = 2,    // +- 22000 (Complemento a dos)
-        RESOLUTION_LOW    = 3       // +- 11000 (Complemento a dos)
+        RESOLUTION_MEDIUM   = 2,    // +- 22000 (No signado)
+        RESOLUTION_LOW    = 3       // +- 11000 (No signado)
     };
 
     enum OSR{
@@ -70,9 +70,9 @@ public:
      * @param osr2 Oversampling Ratio del CAD para el sensor de temperatura
      * @param gain ganancia que se tiene para las mediciones
      */
-    bool init_sensor(uint16_t offset_x = 0, 
-                        uint16_t offset_y = 0, 
-                        uint16_t offset_z = 0, 
+    bool init_sensor(uint16_t offset_x = 0x8000, 
+                        uint16_t offset_y = 0x8000, 
+                        uint16_t offset_z = 0x8000, 
                         RES res_x = RESOLUTION_MAX, 
                         RES res_y = RESOLUTION_MAX, 
                         RES res_z = RESOLUTION_MAX, 
@@ -83,10 +83,9 @@ public:
 
     /**
      * @brief Metodo que inicia la medicion del magnetometro
-     * @param begin_time Tiempo en el que se incia la medicion
-     * @return Estructura con los datos para x, y y z
+     * @return True si se inicia la medicion correctamente, False sino
      */
-    bool begin_measurement_mag();
+    bool start_measurement_mag();
 
     /**
      * @brief Metodo que recaba la medicion del magnetometro
@@ -96,10 +95,9 @@ public:
 
     /**
      * @brief Metodo que inicia la medicion del sensor de temperatura
-     * @param begin_time Tiempo en el que se incia la medicion
-     * @return Estructura con los datos para t
+     * @return True si se inicia la medicion correctamente, False sino
      */
-    bool begin_measurement_temp();
+    bool start_measurement_temp();
 
     /**
      * @brief Metodo que recaba la medicion del sensor de temperatura
