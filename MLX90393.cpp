@@ -43,6 +43,8 @@ bool MLX90393::init_sensor(uint16_t offset_x, uint16_t offset_y, uint16_t offset
     // 2. Se anade la nueva informacion de la ganancia ((uint16_t(gain) << 4) & 0x0070)
     uint16_t new_data = old_data & 0xFF8F | ((uint16_t(gain) << 4) & 0x0070);
 
+    write_register(0x00, new_data); // Se escribe el nuevo registro
+
     printf("MLX90393 inicializado. Tiempo de adquisición mag : %u us\n", this->aquisition_time_mag);
     printf("MLX90393 inicializado. Tiempo de adquisición temp : %u us\n", this->aquisition_time_temp);
 
