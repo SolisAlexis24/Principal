@@ -65,22 +65,28 @@ public:
     } LSM9DS1Data;
 
     /**
-     * @brief Constructor que inicializa el sensor con parámetros por defecto
+     * @brief Constructor de la clase LSM9DS1
      * 
-     * @param i2c_port Puerto I2C a utilizar (por defecto i2c0)
-     * @param sda_pin Pin SDA (por defecto GPIO 16)
-     * @param scl_pin Pin SCL (por defecto GPIO 17)
-     * @param i2c_freq Frecuencia I2C (por defecto 400 kHz)
+     * Inicializa el puerto I2C y configura los pines SDA/SCL
+     * 
+     * @param i2c_port Puerto I2C a utilizar (i2c0 o i2c1)
+     * @param sda_pin Pin GPIO para SDA
+     * @param scl_pin Pin GPIO para SCL
+     * @param i2c_freq Frecuencia I2C en Hz (por defecto 400kHz)
+     * @param i2c_mutex Mutex para proteger el acceso al bus I2C
      */
     LSM9DS1(i2c_inst_t* i2c_port, uint sda_pin, uint scl_pin, uint i2c_freq, mutex_t* i2c_mutex = nullptr);
     
     /**
      * @brief Inicializa el acelerómetro y giroscopio
      * 
+     * Configura los registros de control del acelerómetro/giroscopio con los parámetros dados
+     * 
      * @param gyro_scale Escala del giroscopio (245/500/2000 dps)
      * @param accel_scale Escala del acelerómetro (2/4/8/16 g)
-     * @param gyro_odr Tasa de muestreo del giroscopio
-     * @param accel_odr Tasa de muestreo del acelerómetro
+     * @param gyro_odr Tasa de muestreo del giroscopio (ODR)
+     * @param accel_odr Tasa de muestreo del acelerómetro (ODR)
+     * @return true si la inicialización fue exitosa, false en caso contrario
      */
     bool init_accel(GyroScale gyro_scale = SCALE_GYRO_245DPS,
                    AccelScale accel_scale = SCALE_ACCEL_4G,
@@ -90,30 +96,32 @@ public:
     /**
      * @brief Inicializa el magnetómetro
      * 
+     * Configura los registros de control del magnetómetro con los parámetros dados
+     * 
      * @param scale Escala del magnetómetro (4/8/12/16 Gauss)
-     * @param sample_rate Tasa de muestreo del magnetómetro
+     * @param odr Tasa de muestreo (0.625Hz a 80Hz)
      */
     bool init_magnetometer(MagScale scale = MAG_SCALE_4GAUSS, 
-                         MagODR sample_rate = MAG_ODR_80HZ);
+                         MagODR odr = MAG_ODR_80HZ);
     
     /**
      * @brief Lee los datos del acelerómetro
      * 
-     * @param accel Arreglo de 3 floats donde se almacenarán los datos (X,Y,Z en g)
+     * @param accel Arreglo donde se almacenarán los datos [X,Y,Z] en g
      */
     LSM9DS1Data read_accelerometer();
     
     /**
      * @brief Lee los datos del giroscopio
      * 
-     * @param gyro Arreglo de 3 floats donde se almacenarán los datos (X,Y,Z en dps)
+     * @param gyro Arreglo donde se almacenarán los datos [X,Y,Z] en dps
      */
     LSM9DS1Data read_gyroscope();
     
     /**
      * @brief Lee los datos del magnetómetro
      * 
-     * @param mag Arreglo de 3 floats donde se almacenarán los datos (X,Y,Z en Gauss)
+     * @param mag Arreglo donde se almacenarán los datos [X,Y,Z] en Gauss
      */
     LSM9DS1Data read_magnetometer();
 
@@ -123,7 +131,7 @@ public:
      */
     void calibrate_magnetometer(float offset_x, float offset_y, float offset_z);
 
-        /**
+    /**
      * @brief Configura un offset al giroscopio sobre cada eje para corregir mediciones dispares en ejes
      * @param offset_i offset en grad que se restara a los valores del giroscopio en cada eje
      */

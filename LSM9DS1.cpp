@@ -1,30 +1,11 @@
 #include "LSM9DS1.h"
 
-/**
- * @brief Constructor de la clase LSM9DS1
- * 
- * Inicializa el puerto I2C y configura los pines SDA/SCL
- * 
- * @param i2c_port Puerto I2C a utilizar (i2c0 o i2c1)
- * @param sda_pin Pin GPIO para SDA
- * @param scl_pin Pin GPIO para SCL
- * @param i2c_freq Frecuencia I2C en Hz (por defecto 400kHz)
- */
 LSM9DS1::LSM9DS1(i2c_inst_t* i2c_port, uint sda_pin, uint scl_pin, uint i2c_freq, mutex_t* i2c_mutex) 
     : i2c_port_(i2c_port), sda_pin_(sda_pin), scl_pin_(scl_pin), i2c_freq_(i2c_freq),
       gyro_scale_factor_(0), accel_scale_factor_(0), mag_scale_factor_(0), i2c_mutex_(i2c_mutex) {
 }
 
-/**
- * @brief Inicializa el acelerómetro y giroscopio
- * 
- * Configura los registros de control del acelerómetro/giroscopio con los parámetros dados
- * 
- * @param gyro_scale Rango del giroscopio (245/500/2000 dps)
- * @param accel_scale Rango del acelerómetro (2/4/8/16 g)
- * @param gyro_odr Tasa de muestreo del giroscopio (ODR)
- * @param accel_odr Tasa de muestreo del acelerómetro (ODR)
- */
+
 bool LSM9DS1::init_accel(GyroScale gyro_scale, AccelScale accel_scale, ODR gyro_odr, ODR accel_odr) {
     // Verificar conexión leyendo el registro WHO_AM_I
     uint8_t whoami_ag = read_register(AG_ADDR, WHO_AM_I_AG);
@@ -67,14 +48,7 @@ bool LSM9DS1::init_accel(GyroScale gyro_scale, AccelScale accel_scale, ODR gyro_
     return true;
 }
 
-/**
- * @brief Inicializa el magnetómetro
- * 
- * Configura los registros de control del magnetómetro con los parámetros dados
- * 
- * @param scale Rango del magnetómetro (4/8/12/16 Gauss)
- * @param sample_rate Tasa de muestreo (0.625Hz a 80Hz)
- */
+
 bool LSM9DS1::init_magnetometer(MagScale scale, MagODR sample_rate) {
     // Verificar conexión leyendo el registro WHO_AM_I
     uint8_t whoami_m = read_register(M_ADDR, WHO_AM_I_M);
@@ -110,11 +84,7 @@ bool LSM9DS1::init_magnetometer(MagScale scale, MagODR sample_rate) {
     return true;
 }
 
-/**
- * @brief Lee los datos del acelerómetro
- * 
- * @param accel Arreglo donde se almacenarán los datos [X,Y,Z] en g
- */
+
 LSM9DS1::LSM9DS1Data LSM9DS1::read_accelerometer() {
     uint8_t buf[6]; // ( 2 bytes por eje)
     read_bytes(AG_ADDR, OUT_X_L_XL | 0x80, buf, 6);  // Leer 6 registros consecutivos 
@@ -132,11 +102,7 @@ LSM9DS1::LSM9DS1Data LSM9DS1::read_accelerometer() {
     return this->last_measurement;
 }
 
-/**
- * @brief Lee los datos del giroscopio
- * 
- * @param gyro Arreglo donde se almacenarán los datos [X,Y,Z] en dps
- */
+
 LSM9DS1::LSM9DS1Data LSM9DS1::read_gyroscope() {
     uint8_t buf[6];
     read_bytes(AG_ADDR, OUT_X_L_G | 0x80, buf, 6);
@@ -144,21 +110,14 @@ LSM9DS1::LSM9DS1Data LSM9DS1::read_gyroscope() {
     int16_t x = (buf[1] << 8) | buf[0];
     int16_t y = (buf[3] << 8) | buf[2];
     int16_t z = (buf[5] << 8) | buf[4];
-    // Valores de offset hardcodeados para que las mediciones sean más exactas
-    // gyro[0] = x * gyro_scale_factor_ + 0.2673;
-    // gyro[1] = y * gyro_scale_factor_ - 0.5627;
-    // gyro[2] = z * gyro_scale_factor_ - 0.8419;
+
     last_measurement.gyro[0] = x * gyro_scale_factor_ - gyro_offset_x_;
     last_measurement.gyro[1] = y * gyro_scale_factor_ - gyro_offset_y_;
     last_measurement.gyro[2] = z * gyro_scale_factor_ - gyro_offset_z_;
     return this->last_measurement;
 }
 
-/**
- * @brief Lee los datos del magnetómetro
- * 
- * @param mag Arreglo donde se almacenarán los datos [X,Y,Z] en Gauss
- */
+
 LSM9DS1::LSM9DS1Data LSM9DS1::read_magnetometer() {
     uint8_t buf[6];
     read_bytes(M_ADDR, OUT_X_L_M | 0x80, buf, 6);
@@ -199,13 +158,6 @@ void LSM9DS1::calibrate_gyro(float offset_x, float offset_y, float offset_z){
     gyro_offset_z_ = offset_z;
 }
 
-/**
- * @brief Lee un registro del dispositivo I2C
- * 
- * @param addr Dirección I2C del dispositivo
- * @param reg Registro a leer
- * @return uint8_t Valor del registro
- */
 uint8_t LSM9DS1::read_register(uint8_t addr, uint8_t reg) {
     uint8_t val;
     i2c_write_blocking(i2c_port_, addr, &reg, 1, true);  // Mantener activo para lectura
@@ -213,39 +165,20 @@ uint8_t LSM9DS1::read_register(uint8_t addr, uint8_t reg) {
     return val;
 }
 
-/**
- * @brief Escribe en un registro del dispositivo I2C
- * 
- * @param addr Dirección I2C del dispositivo
- * @param reg Registro a escribir
- * @param val Valor a escribir
- */
 void LSM9DS1::write_register(uint8_t addr, uint8_t reg, uint8_t val) {
     uint8_t buf[2] = {reg, val};
-    mutex_enter_blocking(i2c_mutex_); // Asegurar acceso exclusivo al bus I2C
     i2c_write_blocking(i2c_port_, addr, buf, 2, false);
+}
+
+
+void LSM9DS1::read_bytes(uint8_t addr, uint8_t reg, uint8_t *buf, uint8_t len) {
+    mutex_enter_blocking(i2c_mutex_); // Asegurar acceso exclusivo al bus I2C
+    i2c_write_blocking(i2c_port_, addr, &reg, 1, true);  // Mantener activo para lectura
+    i2c_read_blocking(i2c_port_, addr, buf, len, false);
     mutex_exit(i2c_mutex_); // Liberar acceso al bus I2C
 }
 
-/**
- * @brief Lee múltiples registros consecutivos
- * 
- * @param addr Dirección I2C del dispositivo
- * @param reg Registro inicial a leer (con bit auto-incremento)
- * @param buf Buffer para almacenar los datos
- * @param len Número de bytes a leer
- */
-void LSM9DS1::read_bytes(uint8_t addr, uint8_t reg, uint8_t *buf, uint8_t len) {
-    i2c_write_blocking(i2c_port_, addr, &reg, 1, true);  // Mantener activo para lectura
-    i2c_read_blocking(i2c_port_, addr, buf, len, false);
-}
 
-/**
- * @brief Calcula los factores de escala para acelerómetro y giroscopio
- * 
- * @param gyro_scale Escala seleccionada para el giroscopio
- * @param accel_scale Escala seleccionada para el acelerómetro
- */
 void LSM9DS1::calculate_accel_scale_factors(GyroScale gyro_scale, AccelScale accel_scale) {
     // Factores de conversión para el giroscopio (dps/LSB)
     static const float gyro_scales[] = {
@@ -267,11 +200,7 @@ void LSM9DS1::calculate_accel_scale_factors(GyroScale gyro_scale, AccelScale acc
     accel_scale_factor_ = accel_scales[accel_scale];
 }
 
-/**
- * @brief Calcula el factor de escala para el magnetómetro
- * 
- * @param scale Escala seleccionada para el magnetómetro
- */
+
 void LSM9DS1::calculate_mag_scale_factor(MagScale scale) {
     // Factores de conversión para el magnetómetro (Gauss/LSB)
     static const float mag_scales[] = {
