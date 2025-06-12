@@ -8,7 +8,7 @@ MS5803::MS5803(i2c_inst_t *i2c_port, uint sda_pin, uint scl_pin, uint i2c_freq, 
 {
 }
 
-bool MS5803::init(TemperatureOSR t_osr, PressureOSR p_osr, Address add){
+bool MS5803::init_sensor(TemperatureOSR t_osr, PressureOSR p_osr, Address add){
     this->ADDR = add;
     default_press_osr = p_osr;
     default_temp_osr = t_osr;
@@ -54,7 +54,6 @@ bool MS5803::start_measurement_temp(){
 bool MS5803::start_measurement_temp(TemperatureOSR t_osr){
     // Iniciar medicion de temperatura
     uint8_t cmd[1];   // Comando de inicio de conversion
-    uint8_t read_buf[3];
 
     cmd[0] = (uint8_t)t_osr;
 
@@ -69,7 +68,7 @@ bool MS5803::start_measurement_temp(TemperatureOSR t_osr){
     return true;
 }
 
-uint32_t MS5803::poll_measurement(){
+uint32_t MS5803::get_measurement(){
     // Leer la medicion hecha
     uint8_t cmd[1] = {R_ADC};   // Comando de lectura de ADC
     uint8_t read_buf[3];        // Buffer para almacenar lecturas
@@ -100,7 +99,7 @@ uint32_t MS5803::poll_measurement(){
 
 MS5803::MS5803Data MS5803::read_measurement_temp(){
     // Acomodar los datos obtenidos (24 bits)
-    D2 = poll_measurement();
+    D2 = get_measurement();
     // Calculo de la temperatura
     dT = D2 - ((int32_t)C5 << 8);
     TEMP = 2000 + (((int64_t)dT * C6) >> 23);
@@ -150,7 +149,7 @@ bool MS5803::start_measurement_press(PressureOSR p_osr){
 
 MS5803::MS5803Data MS5803::read_measurement_press(){
 
-    D1 = poll_measurement();
+    D1 = get_measurement();
 
     OFF = ((int64_t)C2 << 16) + (((C4 * (int64_t)dT)) >> 7);
 

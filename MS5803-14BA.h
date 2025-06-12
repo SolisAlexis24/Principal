@@ -65,9 +65,9 @@ public:
      * @param t_osr Presicion por defecto de la medicion de temperatura
      * @param p_osr Presicion por defecto de la medicion de la presion
      * @param add Direccion I2C del sensor. Puede ser LOW o HIGH dependiendo en el valor del
-     * pin CS del sensor. CS = LOW -> ADD_HIGH, CS = HIGH -> ADD_LOW
+     * pin CS del sensor. CS = HIGH -> ADD_HIGH, CS = LOW -> ADD_LOW
      */
-    bool init(TemperatureOSR t_osr = T_OSR_4096,
+    bool init_sensor(TemperatureOSR t_osr = T_OSR_4096,
          PressureOSR p_osr = P_OSR_4096, Address add = Address::ADDRESS_HIGH);
 
     /**
@@ -125,13 +125,6 @@ public:
      */
     MS5803Data read_measurement_press();
 
-    /** 
-     * @brief Metodo que calcula el mayor tiempo de adquisicion de entre los dos posibles
-     * de acuerdo a las precisiones seleccionadas.
-     * @param t_osr Precision de temperatura
-     * @param p_osr Precision de presion
-    */
-    uint8_t calculate_aquisition_time_ms(TemperatureOSR t_osr, PressureOSR p_osr);
 
     MS5803Data last_measurement;        // Inmformacion de la ultima medicion realizada
 
@@ -202,7 +195,7 @@ private:
      * @brief Metodo para conseguir la ultima medicion solicitada al sensor.
      * @return Ultima medicion realizada por el sensor.
      */
-    uint32_t poll_measurement();
+    uint32_t get_measurement();
 
     /**
      * @brief Metodo que verifica el CRC de los valores leidos de la EPROM.
@@ -217,4 +210,13 @@ private:
      * @brief Metodo que resetea el sensor para comenzar a utilizarlo
      */
     bool reset();
+
+    /** 
+     * @brief Metodo que calcula el mayor tiempo de adquisicion de entre los dos posibles
+     * de acuerdo a las precisiones seleccionadas.
+     * @param t_osr Precision de temperatura
+     * @param p_osr Precision de presion
+    */
+    uint8_t calculate_aquisition_time_ms(TemperatureOSR t_osr, PressureOSR p_osr);
+
 };
