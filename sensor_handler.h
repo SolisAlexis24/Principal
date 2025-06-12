@@ -30,10 +30,8 @@ typedef struct {
     };
     // Estas variables se deben de modificar manualmente por la falta del pin de interrupcion
 
-        bool is_var0_first_time; // Variable que indica que la medicion del magnetrometro esta lista
-        bool is_var1_first_time; // Variable que indica que la medicion del termometro esta lista
-
-        bool eval_var;
+    bool flag_1; 
+    bool flag_2;
 
 } SensorHandler;
 
