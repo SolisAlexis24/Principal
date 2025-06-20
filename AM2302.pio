@@ -1,0 +1,103 @@
+/*
+El siguiente programa controla el funcionamiento del sensor de 
+temperatura y humedad AM2302 usando ensambaldor PIO, basado en una carta ASM ajunta en la documentacion
+La frecuencia de ejecucion de instrucciones debe ser de 1us
+*/
+.pio_version 0                      ; Version de PIO assembly
+
+.program AM2302                     ; Nombre del programa
+
+
+
+idle:
+    set pindirs, 1                   ; En un principio, se declara que el pin sera de salida
+    set pins, 1                      ; Se pone el bit en alto
+    pull                             ; Le el buffer de lectura (OSR), si no hay nada, no avanza y mantiene en alto
+    mov x, osr                       ; Guarda el valor leido en el registro X
+    set y, 7                         ; Guarda el valor clave en el registro y. El valor clave se configura aqui.
+    jmp x!=y, idle                   ; Si no son iguales, regresa a esperar un nuevo valor
+    
+st_1:
+    ; Si son iguales, se ha comenzado la adquisicion de datos
+    ; Para ello se debe enviar senal baja al sensor 
+    ; por al menos 1 [ms] y a lo mucho 10 [ms]
+    ; En esta implementacion, se hara por 2.56 ms'
+    set pins, 0                      ; Se cambia el estado del pin a bajo
+    set x, 31                [31]    ; 32
+st_1_loop: 
+    jmp x-- st_1_loop        [31]    ; 32 x 32
+    ; Al salir de aqui se habra enviado pulso bajo por 32 + 32 x 32 ciclos
+    ; Que a 1 us por cada ciclo, seran 1056 us / 1.05 [ms]
+
+
+st_2:
+    ; En este estado se pone el pin en alto por entre 20 a 40 [us]
+    ; Para esta implementacion se usan 30 [us]
+    set pins, 1                      ; Se cambia el estado del pin a alto
+    nop                     [29]     ; Aqui se cumplen 30 ciclos
+    set pins, 0                      ; Se cregresa a bajo
+
+
+st_3:
+    ; A partir de este punto, solo se recibe del sensor
+    ; Se verifican los 80 [us] de pulso bajo que envia el sensor
+    set pindirs, 0                  ; El pin sera de entrada a partir de aqui
+    wait 0 pin 0                    ; Espera a que el pin este en cero
+
+st_4:
+    ; Se verifican los 80 [us] de pulso alto que envia el sensor
+    wait 1 pin 0                    ; Espera a que el pin sea 1
+    wait 0 pin 0                    ; Espera a que el pin sea 0 (inicio de transmision)
+
+set y, 31                           ; Se van a leer 32 bits de info (el maximo posible)
+
+read_data:
+    wait 1 pin 0        [25]        ; Espera a que el pin suba.  Cuando lo hace,
+                                    ; espera 25 ciclos, que junto al cilco de la instruccion
+                                    ; Dan una espera de 26 [us]
+    in pins, 1                      ; Se guarda el dato del pin en el ISR
+                                    ; Si han pasado 26 [us] y se mantuvo en 1, es 1
+                                    ; Sino, es un 0, pues este habra caido antes a 0, que es lo que se guarda
+    wait 0 pin 0                    ; Espera a bajar para empezar de nuevo
+    jmp y--, read_data              ; Salta
+
+; Al terminar este bloque, se ha leido 32 bits de datos (temperatura y humedad rel)
+
+set y, 7                            ; Se van a leer 8 bits de info
+read_sum:
+    wait 1 pin 0        [25]        ; Espera a que el pin suba.  Cuando lo hace,
+                                    ; espera 25 ciclos, que junto al cilco de la instruccion
+                                    ; Dan una espera de 26 [us]
+    in pins, 1                      ; Se guarda el dato del pin en el ISR
+                                    ; Si han pasado 26 [us] y se mantuvo en 1, es 1
+                                    ; Sino, es un 0, pues este habra caido antes a 0, que es lo que se guarda
+    wait 0 pin 0                    ; Espera a bajar para empezar de nuevo
+    jmp y--, read_sum               ; Salta
+
+; Al terminar este bloque se han leido 40 bits (temperatura, humedad y checksum)
+
+push block                          ; Se envia la informacion al FIFO RX para que el procesador los lea
+jmp idle                            ; Se espea a una nueva medicion
+
+
+
+% c-sdk {
+static inline void AM2302_program_init(PIO pio, uint sm, uint offset, uint pin, float clk_div) {
+    pio_gpio_init(pio, pin);
+    pio_sm_set_consecutive_pindirs(pio, sm, pin, 1, true);
+    pio_sm_config c = AM2302_program_get_default_config(offset);
+    sm_config_set_set_pins(&c, pin, 1);
+    sm_config_set_in_pins(&c, pin);
+    pio_sm_set_consecutive_pindirs(pio, sm, pin, 1, true);
+    sm_config_set_out_shift(&c, false, true, 32);
+    float div = clock_get_hz(clk_sys) / clk_div;
+    sm_config_set_clkdiv(&c, div);
+    pio_sm_set_config(pio, sm, &c);
+    pio_sm_set_enabled(pio, sm, false);
+}
+%}
+
+
+
+
+

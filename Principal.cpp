@@ -3,6 +3,7 @@
 #include "pico/stdlib.h"
 #include "pico/time.h"
 #include "hardware/gpio.h"
+#include "hardware/pio.h"
 #include "hw_config.h"
 #include "hardware/i2c.h"
 #include "pico/multicore.h"

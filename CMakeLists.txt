@@ -42,6 +42,8 @@ add_executable(Principal Principal.cpp
                 MLX90393.cpp
                 MS5803-14BA.cpp)
 
+pico_generate_pio_header(Principal ${CMAKE_CURRENT_LIST_DIR}/AM2302.pio)
+
 pico_set_program_name(Principal "Principal")
 pico_set_program_version(Principal "0.1")
 
@@ -58,6 +60,7 @@ target_link_libraries(Principal
         hardware_spi
         hardware_i2c
         pico_multicore
+        hardware_pio
         )
 
 # Add the standard include files to the build
