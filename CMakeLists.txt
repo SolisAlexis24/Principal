@@ -40,7 +40,8 @@ add_executable(Principal Principal.cpp
                 sensor_handler.cpp
                 LSM9DS1.cpp
                 MLX90393.cpp
-                MS5803-14BA.cpp)
+                MS5803-14BA.cpp
+                VEML6030.cpp)
 
 pico_generate_pio_header(Principal ${CMAKE_CURRENT_LIST_DIR}/AM2302.pio)
 

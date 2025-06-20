@@ -93,3 +93,16 @@ bool guardar_mediciones_MS5003(FIL *fil, const char *filename, float t, float p,
     if(!cerrar_archivo(fil)) return false;
     return true;  
 }
+
+bool guardar_mediciones_VEML6030(FIL *fil, const char *filename, uint32_t a, uint32_t w, uint64_t time)
+{
+    if(!abrir_archivo(fil, filename)) return false;
+    if (f_printf(fil, "%ld,%ld,%lld\n",
+        a,w, time) < 0) {
+        printf("f_printf failed\n");
+        blink_led(6, 200); // Error de escritura
+        return false;
+    }
+    if(!cerrar_archivo(fil)) return false;
+    return true;  
+}

@@ -14,6 +14,7 @@
 #include "LSM9DS1.h"
 #include "MLX90393.h"
 #include "MS5803-14BA.h"
+#include "VEML6030.h"
 
 #define SDA_PIN 16
 #define SCL_PIN 17
@@ -57,12 +58,14 @@ mutex_t spi_mutex; // Mutex para proteger el acceso al bus SPI
 LSM9DS1 lsm(i2c_port,SDA_PIN, SCL_PIN, I2C_FREC, &i2c_mutex);
 MLX90393 mlx(i2c_port,SDA_PIN, SCL_PIN, I2C_FREC, &i2c_mutex);
 MS5803 ms5803(i2c_port, SDA_PIN, SCL_PIN, I2C_FREC, &i2c_mutex);
+VEML6030 veml(i2c_port, SDA_PIN, SCL_PIN, I2C_FREC, &i2c_mutex);
 
 // Variables globales para los sensores
 SensorHandler LSM_handler;
 SensorHandler MLX_mag_handler;
 SensorHandler MLX_temp_handler;
 SensorHandler MS5803_handler;
+SensorHandler VEML_handler;
 
 int main() {
     mutex_init(&time_mutex);
@@ -100,12 +103,12 @@ int main() {
     }
     //=========================================================================================================================
     // Puntero al archivo
-    FIL LSM_file, MLX_mag_file, MLX_temp_file, MS_file;
+    FIL C0_file, C1_file;
 
     LSM_handler = (SensorHandler){
         .is_connected = false,
         .filename = "LSM9DS1.csv",
-        .file = &LSM_file,
+        .file = &C0_file,
         .buffer_head = 0,
         .buffer_tail = 0,
         .buffer_full = false
@@ -113,7 +116,7 @@ int main() {
     MLX_mag_handler = (SensorHandler){
         .is_connected = false,
         .filename = "MLX90393_mag.csv",
-        .file = &MLX_mag_file,
+        .file = &C0_file,
         .buffer_head = 0,
         .buffer_tail = 0,
         .buffer_full = false,
@@ -122,7 +125,7 @@ int main() {
     MLX_temp_handler = (SensorHandler){
         .is_connected = false,
         .filename = "MLX90393_temp.csv",
-        .file = &MLX_temp_file,
+        .file = &C1_file,
         .buffer_head = 0,
         .buffer_tail = 0,
         .buffer_full = false,
@@ -130,7 +133,7 @@ int main() {
     MS5803_handler = (SensorHandler){
         .is_connected = false,
         .filename = "MS5803.csv",
-        .file = &MS_file,
+        .file = &C1_file,
         .buffer_head = 0,
         .buffer_tail = 0,
         .buffer_full = false,
@@ -138,6 +141,14 @@ int main() {
                                         // La flag de presion no es necearia, pues esta se mide despues de la temperatura
         .flag_2 = false                  //Indica que variable se mando a medir en el ultimo comando
                                         // Si es 0, se mide temperatura, si es 1, se mide presion
+    };
+    VEML_handler = (SensorHandler){
+        .is_connected = false,
+        .filename = "VEML6030.csv",
+        .file = &C1_file,
+        .buffer_head = 0,
+        .buffer_tail = 0,
+        .buffer_full = false,
     };
     //=================================================Inicializacion imu=================================================
     if(lsm.init_accel(
@@ -212,7 +223,7 @@ int main() {
         MS5803::ADDRESS_HIGH
     )){
         if(abrir_archivo(MS5803_handler.file, MS5803_handler.filename)){
-            if (f_printf(MS5803_handler.file, "T[C],P[mbar],t[ms]\n") < 0) {
+            if (f_printf(MS5803_handler.file, "T[C],P[mbar],t[s]\n") < 0) {
                 printf("f_printf failed\n");
                 blink_led(6, 200); // Error de escritura
                 return false;
@@ -227,6 +238,21 @@ int main() {
         MS5803_handler.is_connected = false;
     }
 
+    if(veml.init_sensor(VEML6030::HIGH, VEML6030::GAIN_0_125, VEML6030::IT_100MS)){
+        if(abrir_archivo(VEML_handler.file, VEML_handler.filename)){
+            if (f_printf(VEML_handler.file, "Ambiental[lux],Blanca[lux],t[s]\n") < 0) {
+                printf("f_printf failed\n");
+                blink_led(6, 200); // Error de escritura
+            }       
+        }
+        if (!cerrar_archivo(VEML_handler.file)) {
+            while (1);  // Manejo de error
+        }
+        VEML_handler.is_connected = true;
+    }
+    else{
+        VEML_handler.is_connected = false;
+    }
 
     // Interrupcion para leer los sensores cada 10 ms
     struct repeating_timer timer_c_0;
@@ -372,6 +398,20 @@ void core1_main() {
                 mutex_exit(&spi_mutex);
             }
         }
+        if(is_connected(&VEML_handler)){
+            if(buffer_has_elements(&VEML_handler)){
+                uint32_t save = save_and_disable_interrupts();
+                VEML_handler.veml_current = VEML_handler.veml_buffer[VEML_handler.buffer_tail];
+                VEML_handler.buffer_tail = (VEML_handler.buffer_tail + 1) % BUFFER_SIZE;
+                VEML_handler.buffer_full = false;
+                restore_interrupts_from_disabled(save);
+                mutex_enter_blocking(&spi_mutex);
+                if(!guardar_mediciones_VEML6030(VEML_handler.file, VEML_handler.filename, VEML_handler.veml_current.ambient, VEML_handler.veml_current.white, VEML_handler.veml_current.time_ms/1000)){
+                    printf("Error al guardar mediciones luminicas\n");
+                }
+                mutex_exit(&spi_mutex);                
+            }
+        }
     }
 
 }
@@ -406,6 +446,15 @@ bool capturar10s(__unused repeating_timer *t){
             ms5803.last_measurement.time_ms = safe_elapsed_ms_c1;    
             add_alarm_in_ms(ms5803.aquisition_time, get_ms5803, NULL, false);      // Se lanza la alarma para guardar medicion de temperatura
         }
+    }
+
+    if(is_connected(&VEML_handler)){
+        veml.read_ambient();
+        veml.read_white();
+        veml.last_measurement.time_ms = safe_elapsed_ms_c1;
+        printf("Lectura de luz ambiental: %ld Lux\nLectura de luz blanca: %ld Lux\n@%lld [s]\n", veml.last_measurement.ambient, veml.last_measurement.white, veml.last_measurement.time_ms/1000);
+        guardar_en_buffer(VEML_handler.veml_buffer, VEML_handler.buffer_head, 
+        VEML_handler.buffer_tail, BUFFER_SIZE, VEML_handler.buffer_full, veml.last_measurement);
     }
 
     return true;
