@@ -5,9 +5,11 @@
 #include "MLX90393.h"
 #include "MS5803-14BA.h"
 #include "VEML6030.h"
+#include "AM2302.h"
 
 #define BUFFER_SIZE 32
 #define LED_PIN 25  // LED integrado de la Pico
+#define PIN_AM2302 6
 
 // Estructura que contiene los elementos que un sensor usa para funcionar
 typedef struct {
@@ -23,12 +25,14 @@ typedef struct {
         MLX90393::MLX90393Data mlx_buffer[BUFFER_SIZE];
         MS5803::MS5803Data ms_buffer[BUFFER_SIZE];
         VEML6030::VEML6030Data veml_buffer[BUFFER_SIZE];
+        AM2302::AM2302Data am23_buffer[BUFFER_SIZE];
     };
     union {     // Estructura que contiene los datos de la ultima medicion
         LSM9DS1::LSM9DS1Data lsm_current;
         MLX90393::MLX90393Data mlx_current;
         MS5803::MS5803Data ms5803_current;
         VEML6030::VEML6030Data veml_current;
+        AM2302::AM2302Data am23_current;
     };
     // Estas variables se deben de modificar manualmente por la falta del pin de interrupcion
 
@@ -107,6 +111,8 @@ bool guardar_mediciones_temp_MLX90393(FIL* fil, const char* filename, float t, u
 bool guardar_mediciones_MS5003(FIL* fil, const char* filename, float t, float p, uint64_t time);
 
 bool guardar_mediciones_VEML6030(FIL *fil, const char *filename, uint32_t a, uint32_t w, uint64_t time);
+
+bool guardar_mediciones_AM2302(FIL *fil, const char *filename, float h, float t, AM2302::state st, uint64_t time);
 
 template<typename T>
 void guardar_en_buffer(T* buffer, uint8_t& head, uint8_t tail, int buffer_size, bool& buffer_full, const T& medicion) {

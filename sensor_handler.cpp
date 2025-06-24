@@ -106,3 +106,16 @@ bool guardar_mediciones_VEML6030(FIL *fil, const char *filename, uint32_t a, uin
     if(!cerrar_archivo(fil)) return false;
     return true;  
 }
+
+bool guardar_mediciones_AM2302(FIL *fil, const char *filename, float h, float t, AM2302::state st, uint64_t time)
+{
+    if(!abrir_archivo(fil, filename)) return false;
+    if (f_printf(fil, "%.1f,%.1f, %d ,%lld\n",
+        h,t,st, time) < 0) {
+        printf("f_printf failed\n");
+        blink_led(6, 200); // Error de escritura
+        return false;
+    }
+    if(!cerrar_archivo(fil)) return false;
+    return true;  
+}

@@ -15,6 +15,7 @@
 #include "MLX90393.h"
 #include "MS5803-14BA.h"
 #include "VEML6030.h"
+#include "AM2302.h"
 
 #define SDA_PIN 16
 #define SCL_PIN 17
@@ -59,6 +60,7 @@ LSM9DS1 lsm(i2c_port,SDA_PIN, SCL_PIN, I2C_FREC, &i2c_mutex);
 MLX90393 mlx(i2c_port,SDA_PIN, SCL_PIN, I2C_FREC, &i2c_mutex);
 MS5803 ms5803(i2c_port, SDA_PIN, SCL_PIN, I2C_FREC, &i2c_mutex);
 VEML6030 veml(i2c_port, SDA_PIN, SCL_PIN, I2C_FREC, &i2c_mutex);
+AM2302 am23(PIN_AM2302);
 
 // Variables globales para los sensores
 SensorHandler LSM_handler;
@@ -66,6 +68,7 @@ SensorHandler MLX_mag_handler;
 SensorHandler MLX_temp_handler;
 SensorHandler MS5803_handler;
 SensorHandler VEML_handler;
+SensorHandler AM23_handler;
 
 int main() {
     mutex_init(&time_mutex);
@@ -149,6 +152,16 @@ int main() {
         .buffer_head = 0,
         .buffer_tail = 0,
         .buffer_full = false,
+    };
+
+    AM23_handler = (SensorHandler){
+        .is_connected = false,
+        .filename = "AM2302.csv",
+        .file = &C1_file,
+        .buffer_head = 0,
+        .buffer_tail = 0,
+        .buffer_full = false,
+        .flag_1 = true
     };
     //=================================================Inicializacion imu=================================================
     if(lsm.init_accel(
@@ -254,6 +267,20 @@ int main() {
         VEML_handler.is_connected = false;
     }
 
+    if(am23.init_sensor()){
+        if(abrir_archivo(AM23_handler.file, AM23_handler.filename)){
+            if (f_printf(AM23_handler.file, "Humedad relativa [%%], Temperatura [C], Status ,t[s]\n") < 0) {
+                printf("f_printf failed\n");
+                blink_led(6, 200); // Error de escritura
+            }       
+        }
+        if (!cerrar_archivo(AM23_handler.file)) {
+            while (1);  // Manejo de error
+        }    
+        AM23_handler.is_connected = true;
+    }else{
+        AM23_handler.is_connected = false;
+    }
     // Interrupcion para leer los sensores cada 10 ms
     struct repeating_timer timer_c_0;
     add_repeating_timer_ms(10, capturar10ms, NULL, &timer_c_0);
@@ -412,6 +439,20 @@ void core1_main() {
                 mutex_exit(&spi_mutex);                
             }
         }
+        if(is_connected(&AM23_handler)){
+            if(buffer_has_elements(&AM23_handler)){
+                uint32_t save = save_and_disable_interrupts();
+                AM23_handler.am23_current = AM23_handler.am23_buffer[AM23_handler.buffer_tail];
+                AM23_handler.buffer_tail = (AM23_handler.buffer_tail + 1) % BUFFER_SIZE;
+                AM23_handler.buffer_full = false;
+                restore_interrupts_from_disabled(save);
+                mutex_enter_blocking(&spi_mutex);
+                if(!guardar_mediciones_AM2302(AM23_handler.file, AM23_handler.filename, AM23_handler.am23_current.humidity, AM23_handler.am23_current.temperature, AM23_handler.am23_current.st, AM23_handler.am23_current.time_ms/1000)){
+                    printf("Error al guardar mediciones AM2302\n");
+                }     
+                mutex_exit(&spi_mutex);        
+            }
+        }
     }
 
 }
@@ -452,9 +493,23 @@ bool capturar10s(__unused repeating_timer *t){
         veml.read_ambient();
         veml.read_white();
         veml.last_measurement.time_ms = safe_elapsed_ms_c1;
-        printf("Lectura de luz ambiental: %ld Lux\nLectura de luz blanca: %ld Lux\n@%lld [s]\n", veml.last_measurement.ambient, veml.last_measurement.white, veml.last_measurement.time_ms/1000);
         guardar_en_buffer(VEML_handler.veml_buffer, VEML_handler.buffer_head, 
         VEML_handler.buffer_tail, BUFFER_SIZE, VEML_handler.buffer_full, veml.last_measurement);
+    }
+
+    if(is_connected(&AM23_handler)){
+        if(AM23_handler.flag_1){
+            am23.start_measurement();
+            AM23_handler.flag_1 = false;
+            am23.last_measurement.time_ms = safe_elapsed_ms_c1;
+        }else{
+            am23.read_measurement();
+
+            guardar_en_buffer(AM23_handler.am23_buffer, AM23_handler.buffer_head, 
+                AM23_handler.buffer_tail, BUFFER_SIZE, AM23_handler.buffer_full, am23.last_measurement);
+            am23.start_measurement();
+            am23.last_measurement.time_ms = safe_elapsed_ms_c1;
+        }
     }
 
     return true;
