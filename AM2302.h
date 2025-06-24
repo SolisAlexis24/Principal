@@ -25,7 +25,7 @@ class AM2302{
         /**
          * @brief Constructor de la clase
          * @param pin Es el pin (GPIO) con el que se va a enviar y recibir informacion con ayuda del sensor
-         * @note El valor por defecto asignado es el pin designado para la OBD
+         * @note El valor por defecto asignado es el pin designado para la OBC
          */
         AM2302(uint pin=6);
 
@@ -36,6 +36,9 @@ class AM2302{
          */
         bool init_sensor();
 
+        /**
+         * @brief Este método inicia una nueva medición
+         */
         void start_measurement();
     
         /**
