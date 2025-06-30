@@ -24,7 +24,7 @@ bool MS5803::init_sensor(TemperatureOSR t_osr, PressureOSR p_osr, Address add){
     // Verificar CRC
     uint8_t crc_read = prom[7] & 0xF;
     if (!verify_crc(prom, crc_read)) {
-        printf("¡Error de CRC en la PROM del sensor!\n");
+        printf("MS5803-14BA: ¡Error de CRC en la PROM del sensor!\n");
         return false;
     }
 
@@ -41,8 +41,8 @@ bool MS5803::init_sensor(TemperatureOSR t_osr, PressureOSR p_osr, Address add){
 
     aquisition_time = calculate_aquisition_time_ms(t_osr, p_osr);
 
-    printf("Sensor MS5803-14BA inicializado correctamente.\n");
-    printf("Tiempo de activacion maximo: %u ms \n", aquisition_time);
+    printf("MS5803-14BA: Inicializado correctamente.\n");
+    //printf("Tiempo de activacion maximo: %u ms \n", aquisition_time);
 
     return true;
 }
@@ -60,7 +60,7 @@ bool MS5803::start_measurement_temp(TemperatureOSR t_osr){
     mutex_enter_blocking(i2c_mutex_); // Asegurar acceso exclusivo al bus I2C
     // Enviar comando de conversion de temperatura
     if(i2c_write_blocking(i2c_port_, ADDR, cmd, 1, false) != 1){
-        printf("Error al escribir el comando de inicio de conversion de temperatura\n");
+        printf("MS5803-14BA: Error al escribir el comando de inicio de conversion de temperatura\n");
         mutex_exit(i2c_mutex_); // Liberar el mutex para permitir otras operaciones I2C
         return false;
     } 
@@ -76,7 +76,7 @@ uint32_t MS5803::get_measurement(){
     mutex_enter_blocking(i2c_mutex_); // Asegurar acceso exclusivo al bus I2C
     // Paso 1: Enviar comando de lectura del ADC de temperatura
     if(i2c_write_blocking(i2c_port_, ADDR, cmd, 1, false) != 1){
-        printf("Error al escribir el comando de inicio de lectura de temperatura\n");
+        printf("MS5803-14BA: Error al escribir el comando de inicio de lectura de temperatura\n");
         mutex_exit(i2c_mutex_); // Liberar el mutex para permitir otras operaciones I2C
         return 0;
     } 
@@ -85,7 +85,7 @@ uint32_t MS5803::get_measurement(){
     mutex_enter_blocking(i2c_mutex_); // Asegurar acceso exclusivo al bus I2C
     // Paso 2: Leer 3 bytes de datos de temperatura
     if(i2c_read_blocking(i2c_port_, ADDR, read_buf, 3, false) != 3){
-        printf("Error al obtener los datos de la temperatura");
+        printf("MS5803-14BA: Error al obtener los datos de la temperatura");
         mutex_exit(i2c_mutex_); // Liberar el mutex para permitir otras operaciones I2C
         return 0;
     }
@@ -139,7 +139,7 @@ bool MS5803::start_measurement_press(PressureOSR p_osr){
     mutex_enter_blocking(i2c_mutex_); // Asegurar acceso exclusivo al bus I2C
     // Enviar comando de conversion de temperatura
     if(i2c_write_blocking(i2c_port_, ADDR, cmd, 1, false) != 1){
-        printf("Error al escribir el comando de inicio de conversion de presion\n");
+        printf("MS5803-14BA: Error al escribir el comando de inicio de conversion de presion\n");
         mutex_exit(i2c_mutex_); // Liberar el mutex para permitir otras operaciones I2C
         return false;
     } 
@@ -171,7 +171,7 @@ MS5803::MS5803Data MS5803::read_measurement_press(){
 
 uint16_t MS5803::read_from_prom(uint8_t reg) {
     if (reg < 0xA0 || reg > 0xAE || (reg & 0x1)) {
-        printf("Registro no válido para lectura PROM: 0x%02X\n", reg);
+        printf("MS5803-14BA: Registro no válido para lectura PROM: 0x%02X\n", reg);
         return 0;
     }
     uint8_t cmd[1] = {reg};     // Comando de lectura de registro
@@ -179,13 +179,13 @@ uint16_t MS5803::read_from_prom(uint8_t reg) {
 
     // Enviar comando de lectura de cierto registro
     if(i2c_write_blocking(i2c_port_, ADDR, cmd, 1, false) != 1){
-        printf("Error al escribir el comando de lectura de registro para 0x%0X\n", reg);
+        printf("MS5803-14BA: Error al escribir el comando de lectura de registro para 0x%0X\n", reg);
         return 0;
     } 
 
     // Leer el valor del registro
     if(i2c_read_blocking(i2c_port_, ADDR, read_buf, 2, false) != 2){
-        printf("Error al obtener los datos de la PROM para el registro 0x%0X\n", reg);
+        printf("MS5803-14BA: Error al obtener los datos de la PROM para el registro 0x%0X\n", reg);
         return 0;
     }
     
@@ -242,7 +242,7 @@ bool MS5803::reset(){
 
     // Enviar comando de reset
     if(i2c_write_blocking(i2c_port_, ADDR, cmd, 1, false) != 1){
-        printf("Error al intentar reiniciar el controlador\n");
+        printf("MS5803-14BA: Error al intentar reiniciar el controlador\n");
         return false;
     }  
     // Espera recomendada

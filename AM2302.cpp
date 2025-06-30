@@ -48,7 +48,7 @@ bool AM2302::init_sensor(){
         // se indica que se pudo conectar correctamente, sino, se indica que no se pudo
         for(int attemp = 1; attemp <= MAX_ATTEMPS; attemp++){
             printf("AM2302: No se pudo iniciar, intento: %u\n", attemp);
-            sleep_ms(2000);             // Delay minimo necesario entre lecturas
+            sleep_ms(3000);             // Delay minimo necesario entre lecturas
             this->read_measurement();   // Se hace una nueva lectura
             if(last_measurement.st == OK){
                 printf("AM3202: Iniciado correctamente al intento: %u\n", attemp);

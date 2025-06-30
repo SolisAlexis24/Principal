@@ -6,10 +6,8 @@ MLX90393::MLX90393(i2c_inst_t *i2c_port, uint sda_pin, uint scl_pin, uint i2c_fr
 
 bool MLX90393::init_sensor(uint16_t offset_x, uint16_t offset_y, uint16_t offset_z,
                             RES res_x, RES res_y, RES res_z, DIG_FILT filt, OSR osr, OSR osr2, GAIN gain){
-    if (this->verify_connection()) {
-        printf("Sensor MLX90393 conectado y funcionando correctamente\n");
-    } else {
-        printf("Error: Problema con la conexión del sensor MLX90393\n");
+    if (!this->verify_connection()) {
+        printf("MLX90393: Error, Problema con la conexión del sensor.\n");
         return false;
     }
     // Desactiva la comunicación SPI Registro 0x01
@@ -45,8 +43,9 @@ bool MLX90393::init_sensor(uint16_t offset_x, uint16_t offset_y, uint16_t offset
 
     write_register(0x00, new_data); // Se escribe el nuevo registro
 
-    printf("MLX90393 inicializado. Tiempo de adquisición mag : %u us\n", this->aquisition_time_mag);
-    printf("MLX90393 inicializado. Tiempo de adquisición temp : %u us\n", this->aquisition_time_temp);
+    //printf("MLX90393 inicializado. Tiempo de adquisición mag : %u us\n", this->aquisition_time_mag);
+    //printf("MLX90393 inicializado. Tiempo de adquisición temp : %u us\n", this->aquisition_time_temp);
+    printf("MLX90393: Sensor inicializado correctamente.\n");
 
     return true;
 }
@@ -66,7 +65,7 @@ bool MLX90393::start_measurement_mag(){
     i2c_read_blocking(i2c_port_, ADDR, read_buf, 1, false);
     mutex_exit(i2c_mutex_); // Liberar el mutex para permitir otras operaciones I2C
 
-    if(read_buf[0] & 0x10){ printf("Error al iniciar la medición de magnetomero\n"); return false;}
+    if(read_buf[0] & 0x10){ printf("MLX90393: Error al iniciar la medición de magnetomero\n"); return false;}
 
 
 
@@ -90,7 +89,7 @@ MLX90393::MLX90393Data MLX90393::read_measurement_mag(){
     mutex_exit(i2c_mutex_); // Liberar el mutex para permitir otras operaciones I2C
 
 
-    if(read_buf[0] & 0x10) { printf("Error al obtener los datos del magnetometro\n"); return MLX90393Data();}
+    if(read_buf[0] & 0x10) { printf("MLX90393: Error al obtener los datos del magnetometro\n"); return MLX90393Data();}
 
     uint16_t raw_x = (read_buf[1] << 8) | read_buf[2];
     uint16_t raw_y = (read_buf[3] << 8) | read_buf[4];
@@ -155,7 +154,7 @@ bool MLX90393::start_measurement_temp(){
     mutex_exit(i2c_mutex_); // Liberar el mutex para permitir otras operaciones I2C
 
 
-    if(read_buf[0] & 0x10){ printf("Error al iniciar la medición de temperatura\n"); return false;}
+    if(read_buf[0] & 0x10){ printf("MLX90393: Error al iniciar la medición de temperatura\n"); return false;}
 
     return true;
 }
@@ -176,7 +175,7 @@ MLX90393::MLX90393Data MLX90393::read_measurement_temp(){
     i2c_read_blocking(i2c_port_, ADDR, read_buf, 3, false);
     mutex_exit(i2c_mutex_); // Liberar el mutex para permitir otras operaciones I2C
 
-    if(read_buf[0] & 0x10) { printf("Error al obtener los dato de temperaturas\n"); return MLX90393Data();}
+    if(read_buf[0] & 0x10) { printf("MLX90393: Error al obtener los dato de temperaturas\n"); return MLX90393Data();}
 
     uint16_t raw_temp = (read_buf[1] << 8) | read_buf[2];
 
@@ -201,7 +200,7 @@ bool MLX90393::begin_measurement_mt()
     i2c_read_blocking(i2c_port_, ADDR, read_buf, 1, false);
     mutex_exit(i2c_mutex_); // Liberar el mutex para permitir otras operaciones I2C
 
-    if(read_buf[0] & 0x10){ printf("Error al iniciar la medición de magnetomero y termometro\n"); return false;}
+    if(read_buf[0] & 0x10){ printf("MLX90393: Error al iniciar la medición de magnetomero y termometro\n"); return false;}
 
 
     return true;
@@ -224,7 +223,7 @@ MLX90393::MLX90393Data MLX90393::read_measurement_mt()
     mutex_exit(i2c_mutex_); // Liberar el mutex para permitir otras operaciones I2C
 
 
-    if(read_buf[0] & 0x10) { printf("Error al obtener los datos del magnetometro y termometro\n"); return MLX90393Data();}
+    if(read_buf[0] & 0x10) { printf("MLX90393: Error al obtener los datos del magnetometro y termometro\n"); return MLX90393Data();}
 
     uint16_t raw_temp = (read_buf[1] << 8) | read_buf[2];
     uint16_t raw_x = (read_buf[3] << 8) | read_buf[4];
@@ -283,13 +282,13 @@ uint16_t MLX90393::read_register(uint8_t reg){
 
     // Paso 1: Escribir comando RR + dirección de registro
     if(i2c_write_blocking(i2c_port_, ADDR, cmd, 2, true) != 2){ // true: no enviar stop
-        printf("Error al escribir el comando de lectura de registro para 0x%0X\n", reg);
+        printf("MLX90393: Error al escribir el comando de lectura de registro para 0x%0X\n", reg);
         return 0;
     } 
 
     // Paso 2: Enviar repeated start y leer 3 bytes (status + MSB + LSB)
     if(i2c_read_blocking(i2c_port_, ADDR, read_buf, 3, false) != 3){
-        printf("Error al obtener los datos");
+        printf("MLX90393: Error al obtener los datos");
         return 0;
     }
 
@@ -310,13 +309,13 @@ void MLX90393::write_register(uint8_t reg, uint16_t val){
 
     // Paso 1: Escribir comando WR + informacion + dirección de registro
     if(i2c_write_blocking(i2c_port_, ADDR, cmd, 4, true) != 4){ // true: no enviar stop
-        printf("Error al escribir el comando de escritura de registro para 0x%0X\n", reg);
+        printf("MLX90393: Error al escribir el comando de escritura de registro para 0x%0X\n", reg);
         return;
     } 
 
     // Paso 2: Enviar repeated start y leer 1 byte (status)
     if(i2c_read_blocking(i2c_port_, ADDR, read_buf, 1, false) != 1){
-        printf("Error al obtener el byte de status");
+        printf("MLX90393: Error al obtener el byte de status");
         return;
     }
 
@@ -335,8 +334,8 @@ bool MLX90393::verify_connection() {
     uint16_t reg_0x00 = read_register(0x00);
     uint8_t hallconf = reg_0x00 & 0x0F;
 
-    printf("Registro 0x00 leído: 0x%04X (HALLCONF = 0x%X)\n", 
-          reg_0x00, hallconf);
+    // printf("Registro 0x00 leído: 0x%04X (HALLCONF = 0x%X)\n", 
+    //       reg_0x00, hallconf);
 
     // 6. Verificar si HALLCONF tiene el valor por defecto (0xC)
     if (hallconf != 0xC) {

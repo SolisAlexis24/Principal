@@ -9,10 +9,9 @@ LSM9DS1::LSM9DS1(i2c_inst_t* i2c_port, uint sda_pin, uint scl_pin, uint i2c_freq
 bool LSM9DS1::init_accel(GyroScale gyro_scale, AccelScale accel_scale, ODR gyro_odr, ODR accel_odr) {
     // Verificar conexión leyendo el registro WHO_AM_I
     uint8_t whoami_ag = read_register(AG_ADDR, WHO_AM_I_AG);
-    printf("WHO_AM_I_AG: 0x%02X (esperado: 0x68)\n", whoami_ag);
-    
+
     if (whoami_ag != 0x68) {
-        printf("Error: Sensor LSM9DS1 (AG) no detectado!\n");
+        printf("LSM9SD1: Error, Sensor LSM9DS1 (AG) no detectado!\n");
         return false;
     }
 
@@ -45,6 +44,7 @@ bool LSM9DS1::init_accel(GyroScale gyro_scale, AccelScale accel_scale, ODR gyro_
     // Calcular factores de escala para conversión
     calculate_accel_scale_factors(gyro_scale, accel_scale);
 
+    printf("LSM9DS1: Sensor AG nicializado correctamente\n");
     return true;
 }
 
@@ -52,10 +52,9 @@ bool LSM9DS1::init_accel(GyroScale gyro_scale, AccelScale accel_scale, ODR gyro_
 bool LSM9DS1::init_magnetometer(MagScale scale, MagODR sample_rate) {
     // Verificar conexión leyendo el registro WHO_AM_I
     uint8_t whoami_m = read_register(M_ADDR, WHO_AM_I_M);
-    printf("WHO_AM_I_M: 0x%02X (esperado: 0x3D)\n", whoami_m);
 
     if (whoami_m != 0x3D) {
-        printf("Error: Magnetómetro LSM9DS1 no detectado!\n");
+        printf("LSM9DS1: Error, Magnetómetro LSM9DS1 no detectado!\n");
         return false;
     }
 
@@ -80,6 +79,8 @@ bool LSM9DS1::init_magnetometer(MagScale scale, MagODR sample_rate) {
     
     // Calcular factor de escala
     calculate_mag_scale_factor(scale);
+
+    printf("LSM9DS1: Sensor M nicializado correctamente\n");
 
     return true;
 }

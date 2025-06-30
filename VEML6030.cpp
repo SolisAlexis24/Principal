@@ -37,8 +37,10 @@ bool VEML6030::init_sensor(ADDR_CONF addr, GAIN gain, INTEGRATION_TIME it){
     sleep_ms(10); // Esperar un momento para que el sensor se estabilice
     // enable_PSM(); // Habilitar el modo de ahorro de energía
     // set_power_saving_mode(MODE_1); // Configurar el modo de ahorro de energía
-    printf("VEML6030: Resolución calculada: %.4f lux por cuenta\n", res_);
-    printf("VEML6030: Sensor inicializado correctamente, ID: 0x%02X, SAOC: 0x%02X\n", id, saoc);
+    //printf("VEML6030: Resolución calculada: %.4f lux por cuenta\n", res_);
+    //printf("VEML6030: Sensor inicializado correctamente, ID: 0x%02X, SAOC: 0x%02X\n", id, saoc);
+    printf("VEML6030: Sensor inicializado correctamente\n");
+
     return true;
 }
 

@@ -173,7 +173,6 @@ int main() {
                     LSM9DS1::MAG_ODR_80HZ)){
         lsm.calibrate_magnetometer(0.15f, 0.08f, -0.47f);
         lsm.calibrate_gyro(-0.2673f, 0.5627f, 0.8419);
-        printf("Sensor LSM9DS1 conectado y funcionando correctamente\n");
         if(abrir_archivo(LSM_handler.file, LSM_handler.filename)){
             if (f_printf(LSM_handler.file, "A(x)[g],A(y)[g],A(z)[g],G(x)[dps],G(y)[dps],G(z)[dps],B(x)[G],B(y)[G],B(z)[G],t[ms]\n") < 0) {
                 printf("f_printf failed\n");
