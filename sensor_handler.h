@@ -58,13 +58,13 @@ extern SensorHandler ISL_handler;
  * @brief Verifica si el sensor esta conectado
  * @param handler Puntero al SensorHandler que contiene la informacion del sensor
  */
-bool is_connected(SensorHandler* handler);
+bool esta_conectado(SensorHandler* handler);
 
 /**
  * @brief Verifica si el buffer del sensor tiene elementos
  * @param handler Puntero al SensorHandler que contiene la informacion del sensor
  */
-bool buffer_has_elements(SensorHandler* handler);
+bool buffer_tiene_elementos(SensorHandler* handler);
 
 /**
  * @brief Hace parpadear el LED un número específico de veces
@@ -86,55 +86,65 @@ bool abrir_archivo(FIL* fil, const char* filename);
 bool cerrar_archivo(FIL* fil);
 /**
  * @brief Intenta escribir los datos del LSM9DS1 en la SD
- * @param fil Puntero al archivo sobre el que se trabaja
- * @param filename Nombre del archivo que se va a escribir
- * @param accel Informacion acerca de la aceleracion
- * @param gyro Informacion acerca del giro
- * @param mag Informacion acerca del magnetometro
- * @param time Tiempo de la medicion
  * @return true si se guardaron los datos correctamente, false en caso contrario
  */
 bool guardar_mediciones_LSM9DS1();
 
 /**
  * @brief Intenta escribir los datos del MLX90393_mag en la SD
- * @param fil Puntero al archivo sobre el que se trabaja
- * @param filename Nombre del archivo que se va a escribir
- * @param x Valor de la medicion en X
- * @param y Valor de la medicion en Y
- * @param z Valor de la medicion en Z
- * @param time Tiempo de la medicion
  * @return true si se guardaron los datos correctamente, false en caso contrario
  */
 bool guardar_mediciones_mag_MLX90393();
 
 /**
  * @brief Intenta escribir los datos del MLX90393_temp en la SD
- * @param fil Puntero al archivo sobre el que se trabaja
- * @param filename Nombre del archivo que se va a escribir
- * @param x Valor de la medicion en X
- * @param y Valor de la medicion en Y
- * @param z Valor de la medicion en Z
- * @param time Tiempo de la medicion
  * @return true si se guardaron los datos correctamente, false en caso contrario
  */
 bool guardar_mediciones_temp_MLX90393();
 
+/**
+ * @brief Intenta escribir los datos del MS5803 en la SD
+ * @return true si se guardaron los datos correctamente, false en caso contrario
+ */
 bool guardar_mediciones_MS5003();
 
+/**
+ * @brief Intenta escribir los datos del VEML6030 en la SD
+ * @return true si se guardaron los datos correctamente, false en caso contrario
+ */
 bool guardar_mediciones_VEML6030();
 
+/**
+ * @brief Intenta escribir los datos del AM2302 en la SD
+ * @return true si se guardaron los datos correctamente, false en caso contrario
+ */
 bool guardar_mediciones_AM2302();
 
+/**
+ * @brief Intenta escribir los datos del ISL29125 en la SD
+ * @return true si se guardaron los datos correctamente, false en caso contrario
+ */
 bool guardar_mediciones_ISL29125();
 
+/**
+ * @brief Esta funcion guarda en el buffer la ultima medicion
+ * @param handler Manejador al cual se le haran los cambios
+ * @param buffer Buffer de datos en el cual se va a guardar
+ * @param medicion Medicion a guardar
+ */
 template<typename T>
-void guardar_en_buffer(SensorHandler* manejador, T* buffer ,const T& medicion){
-    buffer[manejador->buffer_head] = medicion;
-    manejador->buffer_head = (manejador->buffer_head + 1) % BUFFER_SIZE;
-    manejador->buffer_full = (manejador->buffer_head == manejador->buffer_tail);
+void guardar_en_buffer(SensorHandler* handler, T* buffer ,const T& medicion){
+    buffer[handler->buffer_head] = medicion;
+    handler->buffer_head = (handler->buffer_head + 1) % BUFFER_SIZE;
+    handler->buffer_full = (handler->buffer_head == handler->buffer_tail);
 }
 
+/**
+ * @brief Esta funcion actualiza el valor actual de la medicion del bufer
+ * @param handler Manejador al cual se le haran los cambios
+ * @param buffer Buffer de donde se extrae la informacion
+ * @param current En donde se guardara la informacion del buffer
+ */
 template <typename T>
 inline void actualizar_buffer(SensorHandler *handler, T *buffer, T& current){
     uint32_t save = save_and_disable_interrupts();

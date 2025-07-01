@@ -8,12 +8,12 @@ SensorHandler VEML_handler;
 SensorHandler AM23_handler;
 SensorHandler ISL_handler;
 
-bool is_connected(SensorHandler* handler)
+bool esta_conectado(SensorHandler* handler)
 {
     return handler->is_connected;
 }
 
-bool buffer_has_elements(SensorHandler* handler)
+bool buffer_tiene_elementos(SensorHandler* handler)
 {
     return handler->buffer_tail != handler->buffer_head || handler->buffer_full;
 }

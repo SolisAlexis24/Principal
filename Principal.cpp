@@ -314,7 +314,7 @@ int main() {
     while(1) {
 
         // Se verifica si el buffer tiene informacion por leer
-        if(is_connected(&LSM_handler) && buffer_has_elements(&LSM_handler)){
+        if(esta_conectado(&LSM_handler) && buffer_tiene_elementos(&LSM_handler)){
             actualizar_buffer(&LSM_handler, LSM_handler.lsm_buffer, LSM_handler.lsm_current);
             mutex_enter_blocking(&spi_mutex);
             if (!guardar_mediciones_LSM9DS1()) {
@@ -323,7 +323,7 @@ int main() {
             mutex_exit(&spi_mutex);
         }
 
-        if(is_connected(&MLX_mag_handler) && buffer_has_elements(&MLX_mag_handler)){
+        if(esta_conectado(&MLX_mag_handler) && buffer_tiene_elementos(&MLX_mag_handler)){
             actualizar_buffer(&MLX_mag_handler, MLX_mag_handler.mlx_buffer, MLX_mag_handler.mlx_current);
             mutex_enter_blocking(&spi_mutex);
             if (!guardar_mediciones_mag_MLX90393()) {
@@ -359,7 +359,7 @@ bool capturar10ms(__unused repeating_timer *t)
 
     
     //===================================Leer LSM9DS1===================================
-    if(is_connected(&LSM_handler)){
+    if(esta_conectado(&LSM_handler)){
         lsm.read_accelerometer();
         lsm.read_gyroscope();
         lsm.read_magnetometer();
@@ -371,7 +371,7 @@ bool capturar10ms(__unused repeating_timer *t)
     //==================================================================================
 
     //==================================Leer MLX90393 (magnetometro y termometro solo leer)==================================
-    if(is_connected(&MLX_mag_handler)){
+    if(esta_conectado(&MLX_mag_handler)){
         if (MLX_mag_handler.flag_1) {                   // Indica que es la primera vez que se mide el magnetometro
             // 1. Comenzar una nueva medición del magnetometro
             mlx.begin_measurement_mt();
@@ -398,7 +398,7 @@ void core1_main() {
     struct repeating_timer timer_c_1;
     add_repeating_timer_ms(10000, capturar10s, NULL, &timer_c_1);
     while(1){
-       if(is_connected(&MLX_temp_handler) && buffer_has_elements(&MLX_temp_handler)){
+       if(esta_conectado(&MLX_temp_handler) && buffer_tiene_elementos(&MLX_temp_handler)){
             actualizar_buffer(&MLX_temp_handler, MLX_temp_handler.mlx_buffer, MLX_temp_handler.mlx_current);
             mutex_enter_blocking(&spi_mutex);
             if (!guardar_mediciones_temp_MLX90393()) {
@@ -406,7 +406,7 @@ void core1_main() {
             }
             mutex_exit(&spi_mutex);
         } 
-        if(is_connected(&MS5803_handler) && buffer_has_elements(&MS5803_handler)){
+        if(esta_conectado(&MS5803_handler) && buffer_tiene_elementos(&MS5803_handler)){
             actualizar_buffer(&MS5803_handler, MS5803_handler.ms58903_buffer, MS5803_handler.ms5803_current);
             mutex_enter_blocking(&spi_mutex);
             if(!guardar_mediciones_MS5003()){
@@ -414,7 +414,7 @@ void core1_main() {
             }
             mutex_exit(&spi_mutex);
         }
-        if(is_connected(&VEML_handler) && buffer_has_elements(&VEML_handler)){
+        if(esta_conectado(&VEML_handler) && buffer_tiene_elementos(&VEML_handler)){
             actualizar_buffer(&VEML_handler, VEML_handler.veml_buffer, VEML_handler.veml_current);
             mutex_enter_blocking(&spi_mutex);
             if(!guardar_mediciones_VEML6030()){
@@ -423,7 +423,7 @@ void core1_main() {
             mutex_exit(&spi_mutex);                
         }
 
-        if(is_connected(&AM23_handler) && buffer_has_elements(&AM23_handler)){
+        if(esta_conectado(&AM23_handler) && buffer_tiene_elementos(&AM23_handler)){
             actualizar_buffer(&AM23_handler, AM23_handler.am23_buffer, AM23_handler.am23_current);
             mutex_enter_blocking(&spi_mutex);
             if(!guardar_mediciones_AM2302()){
@@ -432,7 +432,7 @@ void core1_main() {
             mutex_exit(&spi_mutex);        
         }
 
-        if(is_connected(&ISL_handler) && buffer_has_elements(&ISL_handler)){
+        if(esta_conectado(&ISL_handler) && buffer_tiene_elementos(&ISL_handler)){
             actualizar_buffer(&ISL_handler, ISL_handler.isl_buffer, ISL_handler.isl_current);
             mutex_enter_blocking(&spi_mutex);
             if(!guardar_mediciones_ISL29125()){
@@ -454,12 +454,12 @@ bool capturar10s(__unused repeating_timer *t){
 
     //=====================================Guardar MLX90393 (temperatura)=====================================
 
-    if(is_connected(&MLX_temp_handler)){
+    if(esta_conectado(&MLX_temp_handler)){
         guardar_en_buffer(&MLX_temp_handler, MLX_temp_handler.mlx_buffer, mlx.last_measurement);
     }
     //========================================================================================================
 
-    if(is_connected(&MS5803_handler)){
+    if(esta_conectado(&MS5803_handler)){
         if(MS5803_handler.flag_1){                                                      // Es la primera vez que se mide cualquiera de las dos
             ms5803.start_measurement_temp();
             MS5803_handler.flag_2 = false;                                              // Se indica que se esta midiendo la temperatura
@@ -475,14 +475,14 @@ bool capturar10s(__unused repeating_timer *t){
         }
     }
 
-    if(is_connected(&VEML_handler)){
+    if(esta_conectado(&VEML_handler)){
         veml.read_ambient();
         veml.read_white();
         veml.last_measurement.time_ms = safe_elapsed_ms_c1;
         guardar_en_buffer(&VEML_handler, VEML_handler.veml_buffer, veml.last_measurement);
     }
 
-    if(is_connected(&AM23_handler)){
+    if(esta_conectado(&AM23_handler)){
         if(AM23_handler.flag_1){
             am23.start_measurement();
             AM23_handler.flag_1 = false;
@@ -495,7 +495,7 @@ bool capturar10s(__unused repeating_timer *t){
         }
     }
 
-        if(is_connected(&ISL_handler)){
+        if(esta_conectado(&ISL_handler)){
             isl.read_data();
             isl.last_measurement.time_ms = safe_elapsed_ms_c1;
             guardar_en_buffer(&ISL_handler,ISL_handler.isl_buffer,isl.last_measurement);
