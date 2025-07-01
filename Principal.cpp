@@ -389,9 +389,7 @@ bool capturar10ms(__unused repeating_timer *t)
         mutex_enter_blocking(&time_mutex);
         lsm.last_measurement.time_ms = safe_elapsed_ms_c0;
         mutex_exit(&time_mutex);
-        guardar_en_buffer(LSM_handler.lsm_buffer, LSM_handler.buffer_head, 
-            LSM_handler.buffer_tail, BUFFER_SIZE, LSM_handler.buffer_full, lsm.last_measurement);   
-        
+        guardar_en_buffer(&LSM_handler, LSM_handler.lsm_buffer, lsm.last_measurement);  
     }
     //==================================================================================
 
@@ -405,8 +403,7 @@ bool capturar10ms(__unused repeating_timer *t)
         } else {
             // 2. Leer y guardar los datos en el buffer
             mlx.read_measurement_mt();
-            guardar_en_buffer(MLX_mag_handler.mlx_buffer, MLX_mag_handler.buffer_head, 
-                MLX_mag_handler.buffer_tail, BUFFER_SIZE, MLX_mag_handler.buffer_full, mlx.last_measurement);
+            guardar_en_buffer(&MLX_mag_handler, MLX_mag_handler.mlx_buffer, mlx.last_measurement);
             // 3. Comenzar una nueva medición para el siguiente ciclo
             mlx.begin_measurement_mt();     
             mlx.last_measurement.time_ms = safe_elapsed_ms_c0;
@@ -513,8 +510,7 @@ bool capturar10s(__unused repeating_timer *t){
     //=====================================Guardar MLX90393 (temperatura)=====================================
 
     if(is_connected(&MLX_temp_handler)){
-        guardar_en_buffer(MLX_temp_handler.mlx_buffer, MLX_temp_handler.buffer_head, 
-            MLX_temp_handler.buffer_tail, BUFFER_SIZE, MLX_temp_handler.buffer_full, mlx.last_measurement);
+        guardar_en_buffer(&MLX_temp_handler, MLX_temp_handler.mlx_buffer, mlx.last_measurement);
     }
     //========================================================================================================
 
@@ -538,8 +534,7 @@ bool capturar10s(__unused repeating_timer *t){
         veml.read_ambient();
         veml.read_white();
         veml.last_measurement.time_ms = safe_elapsed_ms_c1;
-        guardar_en_buffer(VEML_handler.veml_buffer, VEML_handler.buffer_head, 
-        VEML_handler.buffer_tail, BUFFER_SIZE, VEML_handler.buffer_full, veml.last_measurement);
+        guardar_en_buffer(&VEML_handler, VEML_handler.veml_buffer, veml.last_measurement);
     }
 
     if(is_connected(&AM23_handler)){
@@ -549,9 +544,7 @@ bool capturar10s(__unused repeating_timer *t){
             am23.last_measurement.time_ms = safe_elapsed_ms_c1;
         }else{
             am23.read_measurement();
-
-            guardar_en_buffer(AM23_handler.am23_buffer, AM23_handler.buffer_head, 
-                AM23_handler.buffer_tail, BUFFER_SIZE, AM23_handler.buffer_full, am23.last_measurement);
+            guardar_en_buffer(&AM23_handler, AM23_handler.am23_buffer, am23.last_measurement);
             am23.start_measurement();
             am23.last_measurement.time_ms = safe_elapsed_ms_c1;
         }
@@ -560,8 +553,7 @@ bool capturar10s(__unused repeating_timer *t){
         if(is_connected(&ISL_handler)){
             isl.read_data();
             isl.last_measurement.time_ms = safe_elapsed_ms_c1;
-            guardar_en_buffer(ISL_handler.isl_buffer, ISL_handler.buffer_head,
-                ISL_handler.buffer_tail, BUFFER_SIZE, ISL_handler.buffer_full, isl.last_measurement);
+            guardar_en_buffer(&ISL_handler,ISL_handler.isl_buffer,isl.last_measurement);
         }
 
     return true;
@@ -571,8 +563,7 @@ int64_t get_ms5803(alarm_id_t id, __unused void *userdata){
     if(MS5803_handler.flag_2){            // En este bloque se guarda la medicion de la presion
         ms5803.read_measurement_press();    // Se lee la medicion de la presion          
         MS5803_handler.flag_2 = false;    // Para la siguiente ocasion se medira temperatura
-        guardar_en_buffer(MS5803_handler.ms_buffer, MS5803_handler.buffer_head, 
-        MS5803_handler.buffer_tail, BUFFER_SIZE, MS5803_handler.buffer_full, ms5803.last_measurement); // Guarda en buffer
+        guardar_en_buffer(&MS5803_handler, MS5803_handler.ms_buffer, ms5803.last_measurement);
         return 0;        // Desactiva la alarma
     }
     else{                                   // En este bloque se guarda la medicion de la temperatura

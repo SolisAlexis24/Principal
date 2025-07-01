@@ -120,10 +120,10 @@ bool guardar_mediciones_AM2302(FIL *fil, const char *filename, float h, float t,
 
 bool guardar_mediciones_ISL29125(FIL *fil, const char *filename, uint16_t r, uint16_t g, uint16_t b, uint64_t time);
 
-// TODO: Hacer que funcione solo dando el handler y medicion
+
 template<typename T>
-void guardar_en_buffer(T* buffer, uint8_t& head, uint8_t tail, int buffer_size, bool& buffer_full, const T& medicion) {
-    buffer[head] = medicion;
-    head = (head + 1) % buffer_size;
-    buffer_full = (head == tail);
+void guardar_en_buffer(SensorHandler* manejador, T* buffer ,const T& medicion){
+    buffer[manejador->buffer_head] = medicion;
+    manejador->buffer_head = (manejador->buffer_head + 1) % BUFFER_SIZE;
+    manejador->buffer_full = (manejador->buffer_head == manejador->buffer_tail);
 }
