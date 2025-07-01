@@ -16,6 +16,8 @@
 #include "MS5803-14BA.h"
 #include "VEML6030.h"
 #include "AM2302.h"
+#include "ISL29125.h"
+
 
 #define SDA_PIN 16
 #define SCL_PIN 17
@@ -61,6 +63,7 @@ MLX90393 mlx(i2c_port,SDA_PIN, SCL_PIN, I2C_FREC, &i2c_mutex);
 MS5803 ms5803(i2c_port, SDA_PIN, SCL_PIN, I2C_FREC, &i2c_mutex);
 VEML6030 veml(i2c_port, SDA_PIN, SCL_PIN, I2C_FREC, &i2c_mutex);
 AM2302 am23(PIN_AM2302);
+ISL29125 isl(i2c_port, SDA_PIN, SCL_PIN, I2C_FREC, &i2c_mutex);
 
 // Variables globales para los sensores
 SensorHandler LSM_handler;
@@ -69,6 +72,7 @@ SensorHandler MLX_temp_handler;
 SensorHandler MS5803_handler;
 SensorHandler VEML_handler;
 SensorHandler AM23_handler;
+SensorHandler ISL_handler;
 
 int main() {
     mutex_init(&time_mutex);
@@ -162,6 +166,15 @@ int main() {
         .buffer_tail = 0,
         .buffer_full = false,
         .flag_1 = true
+    };
+
+    ISL_handler = (SensorHandler){
+        .is_connected = false,
+        .filename = "ISL20125.csv",
+        .file = &C1_file,
+        .buffer_head = 0,
+        .buffer_tail = 0,
+        .buffer_full = false
     };
     //=================================================Inicializacion imu=================================================
     if(lsm.init_accel(
@@ -280,6 +293,23 @@ int main() {
     }else{
         AM23_handler.is_connected = false;
     }
+
+    if(isl.init_sensor()){
+        if(abrir_archivo(ISL_handler.file, ISL_handler.filename)){
+            if (f_printf(ISL_handler.file, "Rojo [lux],Verde [lux],Azul [lux],t[s]\n") < 0) {
+                printf("f_printf failed\n");
+                blink_led(6, 200); // Error de escritura
+            }       
+        }
+        if (!cerrar_archivo(ISL_handler.file)) {
+            while (1);  // Manejo de error
+        }     
+        ISL_handler.is_connected = true;
+    }
+    else{
+        ISL_handler.is_connected = false;        
+    }
+
     // Interrupcion para leer los sensores cada 10 ms
     struct repeating_timer timer_c_0;
     add_repeating_timer_ms(10, capturar10ms, NULL, &timer_c_0);
@@ -438,6 +468,7 @@ void core1_main() {
                 mutex_exit(&spi_mutex);                
             }
         }
+        // TODO: Quitar nest innecesario
         if(is_connected(&AM23_handler)){
             if(buffer_has_elements(&AM23_handler)){
                 uint32_t save = save_and_disable_interrupts();
@@ -450,6 +481,21 @@ void core1_main() {
                     printf("Error al guardar mediciones AM2302\n");
                 }     
                 mutex_exit(&spi_mutex);        
+            }
+        }
+
+        if(is_connected(&ISL_handler)){
+            if(buffer_has_elements(&ISL_handler)){
+                uint32_t save = save_and_disable_interrupts();
+                ISL_handler.isl_current = ISL_handler.isl_buffer[ISL_handler.buffer_tail];
+                ISL_handler.buffer_tail = (ISL_handler.buffer_tail+1) % BUFFER_SIZE;
+                ISL_handler.buffer_full = false;
+                restore_interrupts_from_disabled(save);
+                mutex_enter_blocking(&spi_mutex);
+                if(!guardar_mediciones_ISL29125(ISL_handler.file, ISL_handler.filename, ISL_handler.isl_current.red, ISL_handler.isl_current.green, ISL_handler.isl_current.blue, ISL_handler.isl_current.time_ms/1000)){
+                    printf("Error al guardar mediciones ISL29125\n");
+                }     
+                mutex_exit(&spi_mutex); 
             }
         }
     }
@@ -510,6 +556,13 @@ bool capturar10s(__unused repeating_timer *t){
             am23.last_measurement.time_ms = safe_elapsed_ms_c1;
         }
     }
+
+        if(is_connected(&ISL_handler)){
+            isl.read_data();
+            isl.last_measurement.time_ms = safe_elapsed_ms_c1;
+            guardar_en_buffer(ISL_handler.isl_buffer, ISL_handler.buffer_head,
+                ISL_handler.buffer_tail, BUFFER_SIZE, ISL_handler.buffer_full, isl.last_measurement);
+        }
 
     return true;
 }

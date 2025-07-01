@@ -119,3 +119,16 @@ bool guardar_mediciones_AM2302(FIL *fil, const char *filename, float h, float t,
     if(!cerrar_archivo(fil)) return false;
     return true;  
 }
+
+bool guardar_mediciones_ISL29125(FIL *fil, const char *filename, uint16_t r, uint16_t g,  uint16_t b, uint64_t time)
+{
+    if(!abrir_archivo(fil, filename)) return false;
+    if (f_printf(fil, "%2X,%2X,%2X,%lld\n",
+        r,g,b, time) < 0) {
+        printf("f_printf failed\n");
+        blink_led(6, 200); // Error de escritura
+        return false;
+    }
+    if(!cerrar_archivo(fil)) return false;
+    return true;  
+}

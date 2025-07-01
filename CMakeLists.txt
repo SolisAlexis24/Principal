@@ -42,7 +42,8 @@ add_executable(Principal Principal.cpp
                 MLX90393.cpp
                 MS5803-14BA.cpp
                 VEML6030.cpp
-                AM2302.cpp)
+                AM2302.cpp
+                ISL29125.cpp)
 
 pico_generate_pio_header(Principal ${CMAKE_CURRENT_LIST_DIR}/AM2302.pio)
 

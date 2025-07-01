@@ -6,6 +6,7 @@
 #include "MS5803-14BA.h"
 #include "VEML6030.h"
 #include "AM2302.h"
+#include "ISL29125.h"
 
 #define BUFFER_SIZE 32
 #define LED_PIN 25  // LED integrado de la Pico
@@ -26,6 +27,8 @@ typedef struct {
         MS5803::MS5803Data ms_buffer[BUFFER_SIZE];
         VEML6030::VEML6030Data veml_buffer[BUFFER_SIZE];
         AM2302::AM2302Data am23_buffer[BUFFER_SIZE];
+        ISL29125::ISL29125Data isl_buffer[BUFFER_SIZE];
+        
     };
     union {     // Estructura que contiene los datos de la ultima medicion
         LSM9DS1::LSM9DS1Data lsm_current;
@@ -33,6 +36,7 @@ typedef struct {
         MS5803::MS5803Data ms5803_current;
         VEML6030::VEML6030Data veml_current;
         AM2302::AM2302Data am23_current;
+        ISL29125::ISL29125Data isl_current;
     };
     // Estas variables se deben de modificar manualmente por la falta del pin de interrupcion
 
@@ -114,6 +118,9 @@ bool guardar_mediciones_VEML6030(FIL *fil, const char *filename, uint32_t a, uin
 
 bool guardar_mediciones_AM2302(FIL *fil, const char *filename, float h, float t, AM2302::state st, uint64_t time);
 
+bool guardar_mediciones_ISL29125(FIL *fil, const char *filename, uint16_t r, uint16_t g, uint16_t b, uint64_t time);
+
+// TODO: Hacer que funcione solo dando el handler y medicion
 template<typename T>
 void guardar_en_buffer(T* buffer, uint8_t& head, uint8_t tail, int buffer_size, bool& buffer_full, const T& medicion) {
     buffer[head] = medicion;
