@@ -314,37 +314,22 @@ int main() {
     while(1) {
 
         // Se verifica si el buffer tiene informacion por leer
-        if(is_connected(&LSM_handler)){
-            if (buffer_has_elements(&LSM_handler)) {
-                // Extrae datos del buffer (con interrupciones desactivadas)
-                uint32_t save = save_and_disable_interrupts();
-                LSM_handler.lsm_current =  LSM_handler.lsm_buffer[LSM_handler.buffer_tail];
-                LSM_handler.buffer_tail = (LSM_handler.buffer_tail + 1) % BUFFER_SIZE;
-                LSM_handler.buffer_full = false;
-                restore_interrupts_from_disabled(save);
-                mutex_enter_blocking(&spi_mutex);
-                if (!guardar_mediciones_LSM9DS1()) {
-                    printf("Error al guardar mediciones LSM9DS1\n");
-                }
-                mutex_exit(&spi_mutex);
+        if(is_connected(&LSM_handler) && buffer_has_elements(&LSM_handler)){
+            actualizar_buffer(&LSM_handler, LSM_handler.lsm_buffer, LSM_handler.lsm_current);
+            mutex_enter_blocking(&spi_mutex);
+            if (!guardar_mediciones_LSM9DS1()) {
+                printf("Error al guardar mediciones LSM9DS1\n");
             }
+            mutex_exit(&spi_mutex);
         }
 
-        if(is_connected(&MLX_mag_handler)){
-            // Se verifica si el buffer tiene informacion por leer
-            if (buffer_has_elements(&MLX_mag_handler)) {
-                // Extrae datos del buffer (con interrupciones desactivadas)
-                uint32_t save = save_and_disable_interrupts();
-                MLX_mag_handler.mlx_current = MLX_mag_handler.mlx_buffer[MLX_mag_handler.buffer_tail];
-                MLX_mag_handler.buffer_tail = (MLX_mag_handler.buffer_tail + 1) % BUFFER_SIZE;
-                MLX_mag_handler.buffer_full = false;
-                restore_interrupts_from_disabled(save);
-                mutex_enter_blocking(&spi_mutex);
-                if (!guardar_mediciones_mag_MLX90393()) {
-                    printf("Error al guardar mediciones de magnetometro MLX90393\n");
-                }
-                mutex_exit(&spi_mutex);
-            } 
+        if(is_connected(&MLX_mag_handler) && buffer_has_elements(&MLX_mag_handler)){
+            actualizar_buffer(&MLX_mag_handler, MLX_mag_handler.mlx_buffer, MLX_mag_handler.mlx_current);
+            mutex_enter_blocking(&spi_mutex);
+            if (!guardar_mediciones_mag_MLX90393()) {
+                printf("Error al guardar mediciones de magnetometro MLX90393\n");
+            }
+            mutex_exit(&spi_mutex);
         }
         // // TODO: Reintentar el montaje de la SD cada X tiempo por un par de intentos
         if (sd_card.sd_test_com && !sd_card.sd_test_com(&sd_card)) {
@@ -413,79 +398,47 @@ void core1_main() {
     struct repeating_timer timer_c_1;
     add_repeating_timer_ms(10000, capturar10s, NULL, &timer_c_1);
     while(1){
-       if(is_connected(&MLX_temp_handler)){
-            // Se verifica si el buffer tiene informacion por leer
-            if (buffer_has_elements(&MLX_temp_handler)) {
-                // Extrae datos del buffer (con interrupciones desactivadas)
-                uint32_t save = save_and_disable_interrupts();
-                MLX_temp_handler.mlx_current = MLX_temp_handler.mlx_buffer[MLX_temp_handler.buffer_tail];
-                MLX_temp_handler.buffer_tail = (MLX_temp_handler.buffer_tail + 1) % BUFFER_SIZE;
-                MLX_temp_handler.buffer_full = false;
-                restore_interrupts_from_disabled(save);
-                mutex_enter_blocking(&spi_mutex);
-                if (!guardar_mediciones_temp_MLX90393()) {
-                    printf("Error al guardar mediciones de temperatura MLX90393\n");
-                }
-                mutex_exit(&spi_mutex);
-            } 
+       if(is_connected(&MLX_temp_handler) && buffer_has_elements(&MLX_temp_handler)){
+            actualizar_buffer(&MLX_temp_handler, MLX_temp_handler.mlx_buffer, MLX_temp_handler.mlx_current);
+            mutex_enter_blocking(&spi_mutex);
+            if (!guardar_mediciones_temp_MLX90393()) {
+                printf("Error al guardar mediciones de temperatura MLX90393\n");
+            }
+            mutex_exit(&spi_mutex);
         } 
-        if(is_connected(&MS5803_handler)){
-            if(buffer_has_elements(&MS5803_handler)){
-                uint32_t save = save_and_disable_interrupts();
-                MS5803_handler.ms5803_current = MS5803_handler.ms_buffer[MS5803_handler.buffer_tail];
-                MS5803_handler.buffer_tail = (MS5803_handler.buffer_tail + 1) % BUFFER_SIZE;
-                MS5803_handler.buffer_full = false;
-                restore_interrupts_from_disabled(save);
-                mutex_enter_blocking(&spi_mutex);
-                if(!guardar_mediciones_MS5003()){
-                    printf("Error al guardar mediciones de temperatura MS5803\n");
-                }
-                mutex_exit(&spi_mutex);
+        if(is_connected(&MS5803_handler) && buffer_has_elements(&MS5803_handler)){
+            actualizar_buffer(&MS5803_handler, MS5803_handler.ms58903_buffer, MS5803_handler.ms5803_current);
+            mutex_enter_blocking(&spi_mutex);
+            if(!guardar_mediciones_MS5003()){
+                printf("Error al guardar mediciones de temperatura MS5803\n");
             }
+            mutex_exit(&spi_mutex);
         }
-        if(is_connected(&VEML_handler)){
-            if(buffer_has_elements(&VEML_handler)){
-                uint32_t save = save_and_disable_interrupts();
-                VEML_handler.veml_current = VEML_handler.veml_buffer[VEML_handler.buffer_tail];
-                VEML_handler.buffer_tail = (VEML_handler.buffer_tail + 1) % BUFFER_SIZE;
-                VEML_handler.buffer_full = false;
-                restore_interrupts_from_disabled(save);
-                mutex_enter_blocking(&spi_mutex);
-                if(!guardar_mediciones_VEML6030()){
-                    printf("Error al guardar mediciones luminicas\n");
-                }
-                mutex_exit(&spi_mutex);                
+        if(is_connected(&VEML_handler) && buffer_has_elements(&VEML_handler)){
+            actualizar_buffer(&VEML_handler, VEML_handler.veml_buffer, VEML_handler.veml_current);
+            mutex_enter_blocking(&spi_mutex);
+            if(!guardar_mediciones_VEML6030()){
+                printf("Error al guardar mediciones luminicas\n");
             }
-        }
-        // TODO: Quitar nest innecesario
-        if(is_connected(&AM23_handler)){
-            if(buffer_has_elements(&AM23_handler)){
-                uint32_t save = save_and_disable_interrupts();
-                AM23_handler.am23_current = AM23_handler.am23_buffer[AM23_handler.buffer_tail];
-                AM23_handler.buffer_tail = (AM23_handler.buffer_tail + 1) % BUFFER_SIZE;
-                AM23_handler.buffer_full = false;
-                restore_interrupts_from_disabled(save);
-                mutex_enter_blocking(&spi_mutex);
-                if(!guardar_mediciones_AM2302()){
-                    printf("Error al guardar mediciones AM2302\n");
-                }     
-                mutex_exit(&spi_mutex);        
-            }
+            mutex_exit(&spi_mutex);                
         }
 
-        if(is_connected(&ISL_handler)){
-            if(buffer_has_elements(&ISL_handler)){
-                uint32_t save = save_and_disable_interrupts();
-                ISL_handler.isl_current = ISL_handler.isl_buffer[ISL_handler.buffer_tail];
-                ISL_handler.buffer_tail = (ISL_handler.buffer_tail+1) % BUFFER_SIZE;
-                ISL_handler.buffer_full = false;
-                restore_interrupts_from_disabled(save);
-                mutex_enter_blocking(&spi_mutex);
-                if(!guardar_mediciones_ISL29125()){
-                    printf("Error al guardar mediciones ISL29125\n");
-                }     
-                mutex_exit(&spi_mutex); 
-            }
+        if(is_connected(&AM23_handler) && buffer_has_elements(&AM23_handler)){
+            actualizar_buffer(&AM23_handler, AM23_handler.am23_buffer, AM23_handler.am23_current);
+            mutex_enter_blocking(&spi_mutex);
+            if(!guardar_mediciones_AM2302()){
+                printf("Error al guardar mediciones AM2302\n");
+            }     
+            mutex_exit(&spi_mutex);        
+        }
+
+        if(is_connected(&ISL_handler) && buffer_has_elements(&ISL_handler)){
+            actualizar_buffer(&ISL_handler, ISL_handler.isl_buffer, ISL_handler.isl_current);
+            mutex_enter_blocking(&spi_mutex);
+            if(!guardar_mediciones_ISL29125()){
+                printf("Error al guardar mediciones ISL29125\n");
+            }     
+            mutex_exit(&spi_mutex); 
         }
     }
 
@@ -555,7 +508,7 @@ int64_t get_ms5803(alarm_id_t id, __unused void *userdata){
     if(MS5803_handler.flag_2){            // En este bloque se guarda la medicion de la presion
         ms5803.read_measurement_press();    // Se lee la medicion de la presion          
         MS5803_handler.flag_2 = false;    // Para la siguiente ocasion se medira temperatura
-        guardar_en_buffer(&MS5803_handler, MS5803_handler.ms_buffer, ms5803.last_measurement);
+        guardar_en_buffer(&MS5803_handler, MS5803_handler.ms58903_buffer, ms5803.last_measurement);
         return 0;        // Desactiva la alarma
     }
     else{                                   // En este bloque se guarda la medicion de la temperatura

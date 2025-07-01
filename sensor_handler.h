@@ -24,7 +24,7 @@ typedef struct {
     union { // Estructura que contiene el buffer de datos
         LSM9DS1::LSM9DS1Data lsm_buffer[BUFFER_SIZE];
         MLX90393::MLX90393Data mlx_buffer[BUFFER_SIZE];
-        MS5803::MS5803Data ms_buffer[BUFFER_SIZE];
+        MS5803::MS5803Data ms58903_buffer[BUFFER_SIZE];
         VEML6030::VEML6030Data veml_buffer[BUFFER_SIZE];
         AM2302::AM2302Data am23_buffer[BUFFER_SIZE];
         ISL29125::ISL29125Data isl_buffer[BUFFER_SIZE];
@@ -133,4 +133,13 @@ void guardar_en_buffer(SensorHandler* manejador, T* buffer ,const T& medicion){
     buffer[manejador->buffer_head] = medicion;
     manejador->buffer_head = (manejador->buffer_head + 1) % BUFFER_SIZE;
     manejador->buffer_full = (manejador->buffer_head == manejador->buffer_tail);
+}
+
+template <typename T>
+inline void actualizar_buffer(SensorHandler *handler, T *buffer, T& current){
+    uint32_t save = save_and_disable_interrupts();
+    current = buffer[handler->buffer_tail];
+    handler->buffer_tail = (handler->buffer_tail + 1) % BUFFER_SIZE;
+    handler->buffer_full = false;
+    restore_interrupts_from_disabled(save);
 }
