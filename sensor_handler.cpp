@@ -1,4 +1,12 @@
 #include "sensor_handler.h"
+// Variables globales para los sensores
+SensorHandler LSM_handler;
+SensorHandler MLX_mag_handler;
+SensorHandler MLX_temp_handler;
+SensorHandler MS5803_handler;
+SensorHandler VEML_handler;
+SensorHandler AM23_handler;
+SensorHandler ISL_handler;
 
 bool is_connected(SensorHandler* handler)
 {
@@ -42,93 +50,104 @@ bool cerrar_archivo(FIL* fil) {
     return true;
 }
 
-bool guardar_mediciones_LSM9DS1(FIL* fil, const char* filename ,float accel[3], float gyro[3], float mag[3], uint64_t time) {
-    if(!abrir_archivo(fil, filename)) return false;
-    if (f_printf(fil, "%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%lld\n",
-        accel[0], accel[1], accel[2],
-        gyro[0], gyro[1], gyro[2],
-        mag[0], mag[1], mag[2], time) < 0) {
+bool guardar_mediciones_LSM9DS1() {
+    if(!abrir_archivo(LSM_handler.file, LSM_handler.filename)) return false;
+    if (f_printf(LSM_handler.file, "%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%lld\n",
+                 LSM_handler.lsm_current.accel[0], LSM_handler.lsm_current.accel[1], LSM_handler.lsm_current.accel[2],
+                 LSM_handler.lsm_current.gyro[0], LSM_handler.lsm_current.gyro[1], LSM_handler.lsm_current.gyro[2],
+                 LSM_handler.lsm_current.mag[0], LSM_handler.lsm_current.mag[1], LSM_handler.lsm_current.mag[2], 
+                 LSM_handler.lsm_current.time_ms) < 0) {
         printf("f_printf failed\n");
         blink_led(6, 200); // Error de escritura
         return false;
     }
-    if(!cerrar_archivo(fil)) return false;
+    if(!cerrar_archivo(LSM_handler.file)) return false;
     return true;
 }
 
-bool guardar_mediciones_mag_MLX90393(FIL* fil, const char* filename, float x, float y, float z, uint64_t time){
-    if(!abrir_archivo(fil, filename)) return false;
-    if (f_printf(fil, "%.2f,%.2f,%.2f,%lld\n",
-        x, y, z, time) < 0) {
+bool guardar_mediciones_mag_MLX90393(){
+    if(!abrir_archivo(MLX_mag_handler.file, MLX_mag_handler.filename)) return false;
+    if (f_printf(MLX_mag_handler.file, "%.2f,%.2f,%.2f,%lld\n",
+                 MLX_mag_handler.mlx_current.x, 
+                 MLX_mag_handler.mlx_current.y, 
+                 MLX_mag_handler.mlx_current.z, 
+                 MLX_mag_handler.mlx_current.time_ms) < 0) {
         printf("f_printf failed\n");
         blink_led(6, 200); // Error de escritura
         return false;
     }
-    if(!cerrar_archivo(fil)) return false;
+    if(!cerrar_archivo(MLX_mag_handler.file)) return false;
     return true;   
 }
 
-bool guardar_mediciones_temp_MLX90393(FIL *fil, const char *filename, float t, uint64_t time)
-{
-    if(!abrir_archivo(fil, filename)) return false;
-    if (f_printf(fil, "%.2f,%lld\n",
-        t, time) < 0) {
+bool guardar_mediciones_temp_MLX90393(){
+    if(!abrir_archivo(MLX_temp_handler.file, MLX_temp_handler.filename)) return false;
+    if (f_printf(MLX_temp_handler.file, "%.2f,%lld\n",
+                 MLX_temp_handler.mlx_current.t, 
+                 MLX_temp_handler.mlx_current.time_ms/1000) < 0) {
         printf("f_printf failed\n");
         blink_led(6, 200); // Error de escritura
         return false;
     }
-    if(!cerrar_archivo(fil)) return false;
+    if(!cerrar_archivo(MLX_temp_handler.file)) return false;
     return true;  
 }
 
-bool guardar_mediciones_MS5003(FIL *fil, const char *filename, float t, float p, uint64_t time)
-{
-    if(!abrir_archivo(fil, filename)) return false;
-    if (f_printf(fil, "%.2f,%.2f,%lld\n",
-        t,p, time) < 0) {
+bool guardar_mediciones_MS5003(){
+    if(!abrir_archivo(MS5803_handler.file, MS5803_handler.filename)) return false;
+    if (f_printf(MS5803_handler.file, "%.2f,%.2f,%lld\n",
+                 MS5803_handler.ms5803_current.temperature,
+                 MS5803_handler.ms5803_current.pressure, 
+                 MS5803_handler.ms5803_current.time_ms/1000) < 0) {
         printf("f_printf failed\n");
         blink_led(6, 200); // Error de escritura
         return false;
     }
-    if(!cerrar_archivo(fil)) return false;
+    if(!cerrar_archivo(MS5803_handler.file)) return false;
     return true;  
 }
 
-bool guardar_mediciones_VEML6030(FIL *fil, const char *filename, uint32_t a, uint32_t w, uint64_t time)
-{
-    if(!abrir_archivo(fil, filename)) return false;
-    if (f_printf(fil, "%ld,%ld,%lld\n",
-        a,w, time) < 0) {
+bool guardar_mediciones_VEML6030(){
+    if(!abrir_archivo(VEML_handler.file, VEML_handler.filename)) return false;
+    if (f_printf(VEML_handler.file, "%ld,%ld,%lld\n",
+                VEML_handler.veml_current.ambient,
+                VEML_handler.veml_current.white, 
+                VEML_handler.veml_current.time_ms/1000) < 0) {
         printf("f_printf failed\n");
         blink_led(6, 200); // Error de escritura
         return false;
     }
-    if(!cerrar_archivo(fil)) return false;
+    if(!cerrar_archivo(VEML_handler.file)) return false;
     return true;  
 }
 
-bool guardar_mediciones_AM2302(FIL *fil, const char *filename, float h, float t, AM2302::state st, uint64_t time)
-{
-    if(!abrir_archivo(fil, filename)) return false;
-    if (f_printf(fil, "%.1f,%.1f, %d ,%lld\n",
-        h,t,st, time) < 0) {
+bool guardar_mediciones_AM2302(){
+    if(!abrir_archivo(AM23_handler.file, AM23_handler.filename)) return false;
+    if (f_printf(AM23_handler.file, "%.1f,%.1f, %d ,%lld\n",
+                 AM23_handler.am23_current.humidity,
+                 AM23_handler.am23_current.temperature,
+                 AM23_handler.am23_buffer->st, 
+                 AM23_handler.am23_current.time_ms/1000) < 0) {
         printf("f_printf failed\n");
         blink_led(6, 200); // Error de escritura
         return false;
     }
-    if(!cerrar_archivo(fil)) return false;
+    if(!cerrar_archivo(AM23_handler.file)) return false;
     return true;  
 }
 
-bool guardar_mediciones_ISL29125(FIL *fil, const char *filename, uint16_t r, uint16_t g,  uint16_t b, uint64_t time)
-{
-    if(!abrir_archivo(fil, filename)) return false;
-    if (f_printf(fil, "%2X,%2X,%2X,%lld\n",
-        r,g,b, time) < 0) {
+bool guardar_mediciones_ISL29125(){
+    if(!abrir_archivo(ISL_handler.file, ISL_handler.filename)) return false;
+    if(f_printf(ISL_handler.file,"%2X,%2X,%2X,%lld\n", 
+                ISL_handler.isl_current.red, 
+                ISL_handler.isl_current.green, 
+                ISL_handler.isl_current.blue, 
+                ISL_handler.isl_current.time_ms/1000)<0){
+
         printf("f_printf failed\n");
         blink_led(6, 200); // Error de escritura
-        return false;
+        return false;        
     }
-    if(!cerrar_archivo(fil)) return false;
+    if(!cerrar_archivo(ISL_handler.file)) return false;
     return true;  
 }

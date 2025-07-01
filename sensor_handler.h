@@ -45,6 +45,15 @@ typedef struct {
 
 } SensorHandler;
 
+// Variables globales para los sensores
+extern SensorHandler LSM_handler;
+extern SensorHandler MLX_mag_handler;
+extern SensorHandler MLX_temp_handler;
+extern SensorHandler MS5803_handler;
+extern SensorHandler VEML_handler;
+extern SensorHandler AM23_handler;
+extern SensorHandler ISL_handler;
+
 /**
  * @brief Verifica si el sensor esta conectado
  * @param handler Puntero al SensorHandler que contiene la informacion del sensor
@@ -85,7 +94,7 @@ bool cerrar_archivo(FIL* fil);
  * @param time Tiempo de la medicion
  * @return true si se guardaron los datos correctamente, false en caso contrario
  */
-bool guardar_mediciones_LSM9DS1(FIL* fil, const char* filename ,float accel[3], float gyro[3], float mag[3], uint64_t time);
+bool guardar_mediciones_LSM9DS1();
 
 /**
  * @brief Intenta escribir los datos del MLX90393_mag en la SD
@@ -97,7 +106,7 @@ bool guardar_mediciones_LSM9DS1(FIL* fil, const char* filename ,float accel[3], 
  * @param time Tiempo de la medicion
  * @return true si se guardaron los datos correctamente, false en caso contrario
  */
-bool guardar_mediciones_mag_MLX90393(FIL* fil, const char* filename, float x, float y, float z, uint64_t time);
+bool guardar_mediciones_mag_MLX90393();
 
 /**
  * @brief Intenta escribir los datos del MLX90393_temp en la SD
@@ -109,17 +118,15 @@ bool guardar_mediciones_mag_MLX90393(FIL* fil, const char* filename, float x, fl
  * @param time Tiempo de la medicion
  * @return true si se guardaron los datos correctamente, false en caso contrario
  */
-bool guardar_mediciones_temp_MLX90393(FIL* fil, const char* filename, float t, uint64_t time);
+bool guardar_mediciones_temp_MLX90393();
 
+bool guardar_mediciones_MS5003();
 
-bool guardar_mediciones_MS5003(FIL* fil, const char* filename, float t, float p, uint64_t time);
+bool guardar_mediciones_VEML6030();
 
-bool guardar_mediciones_VEML6030(FIL *fil, const char *filename, uint32_t a, uint32_t w, uint64_t time);
+bool guardar_mediciones_AM2302();
 
-bool guardar_mediciones_AM2302(FIL *fil, const char *filename, float h, float t, AM2302::state st, uint64_t time);
-
-bool guardar_mediciones_ISL29125(FIL *fil, const char *filename, uint16_t r, uint16_t g, uint16_t b, uint64_t time);
-
+bool guardar_mediciones_ISL29125();
 
 template<typename T>
 void guardar_en_buffer(SensorHandler* manejador, T* buffer ,const T& medicion){

@@ -65,14 +65,6 @@ VEML6030 veml(i2c_port, SDA_PIN, SCL_PIN, I2C_FREC, &i2c_mutex);
 AM2302 am23(PIN_AM2302);
 ISL29125 isl(i2c_port, SDA_PIN, SCL_PIN, I2C_FREC, &i2c_mutex);
 
-// Variables globales para los sensores
-SensorHandler LSM_handler;
-SensorHandler MLX_mag_handler;
-SensorHandler MLX_temp_handler;
-SensorHandler MS5803_handler;
-SensorHandler VEML_handler;
-SensorHandler AM23_handler;
-SensorHandler ISL_handler;
 
 int main() {
     mutex_init(&time_mutex);
@@ -331,7 +323,7 @@ int main() {
                 LSM_handler.buffer_full = false;
                 restore_interrupts_from_disabled(save);
                 mutex_enter_blocking(&spi_mutex);
-                if (!guardar_mediciones_LSM9DS1(LSM_handler.file, LSM_handler.filename, LSM_handler.lsm_current.accel, LSM_handler.lsm_current.gyro, LSM_handler.lsm_current.mag, LSM_handler.lsm_current.time_ms)) {
+                if (!guardar_mediciones_LSM9DS1()) {
                     printf("Error al guardar mediciones LSM9DS1\n");
                 }
                 mutex_exit(&spi_mutex);
@@ -348,7 +340,7 @@ int main() {
                 MLX_mag_handler.buffer_full = false;
                 restore_interrupts_from_disabled(save);
                 mutex_enter_blocking(&spi_mutex);
-                if (!guardar_mediciones_mag_MLX90393(MLX_mag_handler.file, MLX_mag_handler.filename, MLX_mag_handler.mlx_current.x, MLX_mag_handler.mlx_current.y,  MLX_mag_handler.mlx_current.z, MLX_mag_handler.mlx_current.time_ms)) {
+                if (!guardar_mediciones_mag_MLX90393()) {
                     printf("Error al guardar mediciones de magnetometro MLX90393\n");
                 }
                 mutex_exit(&spi_mutex);
@@ -431,7 +423,7 @@ void core1_main() {
                 MLX_temp_handler.buffer_full = false;
                 restore_interrupts_from_disabled(save);
                 mutex_enter_blocking(&spi_mutex);
-                if (!guardar_mediciones_temp_MLX90393(MLX_temp_handler.file, MLX_temp_handler.filename, MLX_temp_handler.mlx_current.t, MLX_temp_handler.mlx_current.time_ms/1000)) {
+                if (!guardar_mediciones_temp_MLX90393()) {
                     printf("Error al guardar mediciones de temperatura MLX90393\n");
                 }
                 mutex_exit(&spi_mutex);
@@ -445,7 +437,7 @@ void core1_main() {
                 MS5803_handler.buffer_full = false;
                 restore_interrupts_from_disabled(save);
                 mutex_enter_blocking(&spi_mutex);
-                if(!guardar_mediciones_MS5003(MS5803_handler.file, MS5803_handler.filename, MS5803_handler.ms5803_current.temperature, MS5803_handler.ms5803_current.pressure, MS5803_handler.ms5803_current.time_ms/1000)){
+                if(!guardar_mediciones_MS5003()){
                     printf("Error al guardar mediciones de temperatura MS5803\n");
                 }
                 mutex_exit(&spi_mutex);
@@ -459,7 +451,7 @@ void core1_main() {
                 VEML_handler.buffer_full = false;
                 restore_interrupts_from_disabled(save);
                 mutex_enter_blocking(&spi_mutex);
-                if(!guardar_mediciones_VEML6030(VEML_handler.file, VEML_handler.filename, VEML_handler.veml_current.ambient, VEML_handler.veml_current.white, VEML_handler.veml_current.time_ms/1000)){
+                if(!guardar_mediciones_VEML6030()){
                     printf("Error al guardar mediciones luminicas\n");
                 }
                 mutex_exit(&spi_mutex);                
@@ -474,7 +466,7 @@ void core1_main() {
                 AM23_handler.buffer_full = false;
                 restore_interrupts_from_disabled(save);
                 mutex_enter_blocking(&spi_mutex);
-                if(!guardar_mediciones_AM2302(AM23_handler.file, AM23_handler.filename, AM23_handler.am23_current.humidity, AM23_handler.am23_current.temperature, AM23_handler.am23_current.st, AM23_handler.am23_current.time_ms/1000)){
+                if(!guardar_mediciones_AM2302()){
                     printf("Error al guardar mediciones AM2302\n");
                 }     
                 mutex_exit(&spi_mutex);        
@@ -489,7 +481,7 @@ void core1_main() {
                 ISL_handler.buffer_full = false;
                 restore_interrupts_from_disabled(save);
                 mutex_enter_blocking(&spi_mutex);
-                if(!guardar_mediciones_ISL29125(ISL_handler.file, ISL_handler.filename, ISL_handler.isl_current.red, ISL_handler.isl_current.green, ISL_handler.isl_current.blue, ISL_handler.isl_current.time_ms/1000)){
+                if(!guardar_mediciones_ISL29125()){
                     printf("Error al guardar mediciones ISL29125\n");
                 }     
                 mutex_exit(&spi_mutex); 
