@@ -96,22 +96,22 @@ uint8_t ISL29125::read8_register(uint8_t reg)
     uint8_t cmd[1] = {reg};
     uint8_t read_buf[1];
 
-    //mutex_enter_blocking(i2c_mutex_); // Asegurar acceso exclusivo al bus I2C
+    mutex_enter_blocking(i2c_mutex_); // Asegurar acceso exclusivo al bus I2C
     
     if(i2c_write_blocking(i2c_port_, ADDR, cmd, 1, true) != 1){
-        //mutex_exit(i2c_mutex_); // Liberar el mutex para permitir otras operaciones I2C
+        mutex_exit(i2c_mutex_); // Liberar el mutex para permitir otras operaciones I2C
         printf("ISL29125: Error al escribir en el registro %02X a 8 bits\n", reg);
         return 0; // Error al tratar de leer
     }
-    //mutex_exit(i2c_mutex_); // Liberar el mutex para permitir otras operaciones I2C
+    mutex_exit(i2c_mutex_); // Liberar el mutex para permitir otras operaciones I2C
 
-    //mutex_enter_blocking(i2c_mutex_); // Asegurar acceso exclusivo al bus I2C
+    mutex_enter_blocking(i2c_mutex_); // Asegurar acceso exclusivo al bus I2C
     if(i2c_read_blocking(i2c_port_, ADDR, read_buf, 1, false) != 1){
         //mutex_exit(i2c_mutex_); // Liberar el mutex para permitir otras operaciones I2C
         printf("ISL29125: Error al leer del registro %02X a 8 bits\n", reg);
         return 0; // Error al tratar de leer
     }
-    //mutex_exit(i2c_mutex_); // Liberar el mutex para permitir otras operaciones I2C
+    mutex_exit(i2c_mutex_); // Liberar el mutex para permitir otras operaciones I2C
 
     return read_buf[0];
 }
@@ -120,22 +120,22 @@ uint16_t ISL29125::read16_register(uint8_t reg){
     uint8_t cmd[1] = {reg};
     uint8_t read_buf[2];
 
-    //mutex_enter_blocking(i2c_mutex_); // Asegurar acceso exclusivo al bus I2C
+    mutex_enter_blocking(i2c_mutex_); // Asegurar acceso exclusivo al bus I2C
     
     if(i2c_write_blocking(i2c_port_, ADDR, cmd, 1, true) != 1){
-        //mutex_exit(i2c_mutex_); // Liberar el mutex para permitir otras operaciones I2C
+        mutex_exit(i2c_mutex_); // Liberar el mutex para permitir otras operaciones I2C
         printf("ISL29125: Error al escribir en el registro %02X a 16 bits\n", reg);
         return 0; // Error al tratar de escribir
     }
-    //mutex_exit(i2c_mutex_); // Liberar el mutex para permitir otras operaciones I2C
+    mutex_exit(i2c_mutex_); // Liberar el mutex para permitir otras operaciones I2C
 
-    //mutex_enter_blocking(i2c_mutex_); // Asegurar acceso exclusivo al bus I2C
+    mutex_enter_blocking(i2c_mutex_); // Asegurar acceso exclusivo al bus I2C
     if(i2c_read_blocking(i2c_port_, ADDR, read_buf, 2, false) != 2){
-        //muteAx_exit(i2c_mutex_); // Liberar el mutex para permitir otras operaciones I2C
+        mutex_exit(i2c_mutex_); // Liberar el mutex para permitir otras operaciones I2C
         printf("ISL29125: Error al leer del registro %02X a 16 bits\n", reg);
         return 0; // Error al tratar de leer
     }
-    //mutex_exit(i2c_mutex_); // Liberar el mutex para permitir otras operaciones I2C
+    mutex_exit(i2c_mutex_); // Liberar el mutex para permitir otras operaciones I2C
 
     return (read_buf[1] << 8 | read_buf[0]);
 }

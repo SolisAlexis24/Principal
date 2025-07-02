@@ -29,7 +29,7 @@ class ISL29125{
         RES_12 = 1            // 12 bits de resolucion
     };
 
-    //Compensacion activa de luz infraroja configurada en el registro 2
+    //Compensacion activa de luz infrarroja configurada en el registro 2
     enum IR{
         IR_NONE = 0,              // No enciende ningun bit
         IR_LOW = 1,              // Enciende los bits B0 y B1 = 3
