@@ -46,6 +46,7 @@ add_executable(Principal Principal.cpp
                 ISL29125.cpp)
 
 pico_generate_pio_header(Principal ${CMAKE_CURRENT_LIST_DIR}/AM2302.pio)
+pico_generate_pio_header(Principal ${CMAKE_CURRENT_LIST_DIR}/Testigo.pio)
 
 pico_set_program_name(Principal "Principal")
 pico_set_program_version(Principal "0.1")

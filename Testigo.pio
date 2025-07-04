@@ -1,0 +1,59 @@
+/*
+El siguiente programa controla el funcionamiento del led testigo
+*/
+.pio_version 0                      ; Version de PIO assembly
+
+.program Testigo                     ; Nombre del programa
+
+set pindirs, 1                   ; Se declara que el pin sera de salida
+
+loop:
+    st_1:
+    set pins, 1               [31]            ; Se pone el bit en bajo
+    set x, 31                 [31]            ; 1 instrucción + 31 ciclos de delay
+    set y, 31                 [31]            ; 1 instrucción + 31 ciclos de delay
+        st_1_loop_x:
+            st_1_loop_y:
+                jmp y--, st_1_loop_y          ; 32 ciclos
+                set y, 31                     ; 1 ciclo, 33 ciclos
+        jmp x-- st_1_loop_x                   ; 32 ciclos -->  32 + 32 + 32 + (32 x 33)
+
+    st_0:
+    set pins, 0               [31]            ; Se pone el bit en bajo
+    set x, 31                 [31]            ; 1 instrucción + 31 ciclos de delay
+    set y, 31                 [31]            ; 1 instrucción + 31 ciclos de delay
+        st_0_loop_x:
+            st_0_loop_y:
+                jmp y--, st_0_loop_y          ; 32 ciclos
+                set y, 31                     ; 1 ciclo, 33 ciclos
+        jmp x-- st_0_loop_x                   ; 32 ciclos -->  32 + 32 + 32 + (32 x 33)
+
+jmp loop
+
+
+% c-sdk {
+#define LED_TESTIGO_PIN 7
+#include "hardware/clocks.h"
+
+static inline void  Testigo_program_init(PIO pio, uint sm, uint offset, uint pin) {
+    pio_gpio_init(pio, pin);            // Se inicializa el pin que se usara
+    pio_sm_set_consecutive_pindirs(pio, sm, pin, 1, true);  // Se configura como base en la maquina de estados
+    pio_sm_config c = Testigo_program_get_default_config(offset);    // Se crea una config para la mde
+    sm_config_set_set_pins(&c, pin, 1);             // Se configura el pin para cambiarlo de estado a 1 o 0 (set)
+    float div = clock_get_hz (clk_sys)*2;              // 125 MHz --> 125 MHz/125 Mhz -> 1 Hz
+    sm_config_set_clkdiv (&c, div);                 // Se configura el reloj de la mde a 1 Hz 
+    pio_sm_init (pio, sm, offset, &c);              // Se aplican las configuraciones
+    pio_sm_set_enabled(pio, sm, true);              // Se inica la maquina
+}
+static inline void init_testigo(){
+    PIO pio;
+    uint sm;
+    uint offset;
+    bool success = pio_claim_free_sm_and_add_program_for_gpio_range(&Testigo_program, &pio, &sm, &offset, LED_TESTIGO_PIN, 1, true);
+    hard_assert(success, "No fue posible declarar la maquina de estados para el LED testigo\n");
+
+    Testigo_program_init(pio, sm, offset, LED_TESTIGO_PIN);
+
+    printf("LED testigo iniciado en GPIO %d\n", LED_TESTIGO_PIN);
+}
+%}

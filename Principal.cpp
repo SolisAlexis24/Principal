@@ -6,10 +6,12 @@
 #include "hardware/pio.h"
 #include "hw_config.h"
 #include "hardware/i2c.h"
+#include "hardware/watchdog.h"
 #include "pico/multicore.h"
 #include "pico/mutex.h"
 #include "f_util.h"
 #include "ff.h"
+#include "Testigo.pio.h"
 #include "sensor_handler.h"
 #include "LSM9DS1.h"
 #include "MLX90393.h"
@@ -74,6 +76,7 @@ int main() {
     gpio_init(LED_PIN);
     gpio_set_dir(LED_PIN, GPIO_OUT);
 
+
     // Inicialización USB
     if (!stdio_init_all()) {
         while(1) {
@@ -81,6 +84,11 @@ int main() {
             sleep_ms(1000);
         }
     }
+
+    if(watchdog_caused_reboot()){
+        printf("Rebooteado por watchdog\n");
+    }
+
     sleep_ms(5000);
     // Inicializar hardware I2C
     i2c_init(i2c_port, 400000);
@@ -271,23 +279,6 @@ int main() {
     }
     //========================================================================================================================================
 
-    //====================================================Inicializacion del sensor AM2302====================================================
-    success = am23.init_sensor();
-    if(success){
-        if(abrir_archivo(AM23_handler.file, AM23_handler.filename)){
-            if (f_printf(AM23_handler.file, "Humedad relativa [%%], Temperatura [C], Status ,t[s]\n") < 0) {
-                printf("f_printf failed\n");
-                blink_led(6, 200); // Error de escritura
-            }       
-        }
-        if (!cerrar_archivo(AM23_handler.file)) {
-            while (1);  // Manejo de error
-        }    
-        AM23_handler.is_connected = true;
-    }else{
-        AM23_handler.is_connected = false;
-    }
-    //========================================================================================================================================
 
     //===================================================Inicializacion del sensor ISL29125===================================================
     success = isl.init_sensor(ISL29125::MODE_RGB, ISL29125::RAN_10_000 ,ISL29125::RES_16, false, ISL29125::IR_LOW);
@@ -308,6 +299,24 @@ int main() {
     }
     //==========================================================================================================================================
 
+    //====================================================Inicializacion del sensor AM2302====================================================
+    success = am23.init_sensor();
+    if(success){
+        if(abrir_archivo(AM23_handler.file, AM23_handler.filename)){
+            if (f_printf(AM23_handler.file, "Humedad relativa [%%], Temperatura [C], Status ,t[s]\n") < 0) {
+                printf("f_printf failed\n");
+                blink_led(6, 200); // Error de escritura
+            }       
+        }
+        if (!cerrar_archivo(AM23_handler.file)) {
+            while (1);  // Manejo de error
+        }    
+        AM23_handler.is_connected = true;
+    }else{
+        AM23_handler.is_connected = false;
+    }
+    //========================================================================================================================================
+
     // Interrupcion para leer los sensores cada 10 ms
     struct repeating_timer timer_c_0;
     add_repeating_timer_ms(10, capturar10ms, NULL, &timer_c_0);
@@ -316,6 +325,11 @@ int main() {
     start_time = get_absolute_time();
 
     multicore_launch_core1(core1_main);
+
+    // Watchdos de 15 ms
+    watchdog_enable(15, 0);
+
+    init_testigo();
 
     while(1) {
 
@@ -358,6 +372,7 @@ int main() {
 
 bool capturar10ms(__unused repeating_timer *t)
 {
+    watchdog_update();
     
     // Se calcula el tiempo que ha pasado desde la anterior interrupcion
     mutex_enter_blocking(&time_mutex);
