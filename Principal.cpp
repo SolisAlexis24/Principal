@@ -145,9 +145,7 @@ int main() {
         .buffer_head = 0,
         .buffer_tail = 0,
         .buffer_full = false,
-        .flag_1 = true,                 // Indica que es la primera vez que se inicia lectura de temperatura
-                                        // La flag de presion no es necearia, pues esta se mide despues de la temperatura
-        .flag_2 = false                  //Indica que variable se mando a medir en el ultimo comando
+        .flag_1 = false                  //Indica que variable se mando a medir en el ultimo comando
                                         // Si es 0, se mide temperatura, si es 1, se mide presion
     };
     VEML_handler = (SensorHandler){
@@ -233,6 +231,7 @@ int main() {
         }
         MLX_mag_handler.is_connected = true;
         MLX_temp_handler.is_connected = true;
+        mlx.begin_measurement_mt();
     }
     else{
         MLX_mag_handler.is_connected = false;
@@ -254,6 +253,10 @@ int main() {
             while (1);  // Manejo de error
         }
         MS5803_handler.is_connected = true;
+        ms5803.start_measurement_temp();
+        add_alarm_in_ms(ms5803.aquisition_time, get_ms5803, NULL, false);         // Se lanza la alarma para guardar medicion de temperatura
+        MS5803_handler.flag_1 = false;                                              // Se indica que se esta midiendo la temperatura
+
     }
     else{
         MS5803_handler.is_connected = false;
@@ -312,6 +315,7 @@ int main() {
             while (1);  // Manejo de error
         }    
         AM23_handler.is_connected = true;
+        am23.start_measurement();
     }else{
         AM23_handler.is_connected = false;
     }
@@ -397,19 +401,10 @@ bool capturar10ms(__unused repeating_timer *t)
 
     //==================================Leer MLX90393 (guardar y leer magnetometro, termometro solo leer)==================================
     if(esta_conectado(&MLX_mag_handler)){
-        if (MLX_mag_handler.flag_1) {                   // Indica que es la primera vez que se mide el magnetometro
-            // 1. Comenzar una nueva medición del magnetometro
-            mlx.begin_measurement_mt();
-            mlx.last_measurement.time_ms = safe_elapsed_ms_c0;
-            MLX_mag_handler.flag_1 = false;
-        } else {
-            // 2. Leer y guardar los datos en el buffer
-            mlx.read_measurement_mt();
-            guardar_en_buffer(&MLX_mag_handler, MLX_mag_handler.mlx_buffer, mlx.last_measurement);
-            // 3. Comenzar una nueva medición para el siguiente ciclo
-            mlx.begin_measurement_mt();     
-            mlx.last_measurement.time_ms = safe_elapsed_ms_c0;
-        }
+        mlx.read_measurement_mt();
+        guardar_en_buffer(&MLX_mag_handler, MLX_mag_handler.mlx_buffer, mlx.last_measurement);
+        mlx.begin_measurement_mt();     
+        mlx.last_measurement.time_ms = safe_elapsed_ms_c0;
     }
     //=====================================================================================================================================
 
@@ -497,19 +492,10 @@ bool capturar10s(__unused repeating_timer *t){
 
     //==========================================Leer y guardar MS5803==========================================
     if(esta_conectado(&MS5803_handler)){
-        if(MS5803_handler.flag_1){                                                      // Es la primera vez que se mide cualquiera de las dos
-            ms5803.start_measurement_temp();
-            MS5803_handler.flag_2 = false;                                              // Se indica que se esta midiendo la temperatura
-            ms5803.last_measurement.time_ms = safe_elapsed_ms_c1;
-            MS5803_handler.flag_1 = false;                                              // Ya se ha medido temperatura una vez
-            add_alarm_in_ms(ms5803.aquisition_time, get_ms5803, NULL, false);         // Se lanza la alarma para guardar medicion de temperatura
-        }
-        else{ 
-            ms5803.start_measurement_temp();                                        // Se esta midiendo temperatura
-            MS5803_handler.flag_2 = false;                                          // Se indica que se esta midiendo temperatura
-            ms5803.last_measurement.time_ms = safe_elapsed_ms_c1;    
-            add_alarm_in_ms(ms5803.aquisition_time, get_ms5803, NULL, false);      // Se lanza la alarma para guardar medicion de temperatura
-        }
+        ms5803.start_measurement_temp();                                        // Se esta midiendo temperatura
+        MS5803_handler.flag_1 = false;                                          // Se indica que se esta midiendo temperatura
+        ms5803.last_measurement.time_ms = safe_elapsed_ms_c1;    
+        add_alarm_in_ms(ms5803.aquisition_time, get_ms5803, NULL, false);      // Se lanza la alarma para guardar medicion de temperatura
     }
     //=========================================================================================================
 
@@ -523,17 +509,12 @@ bool capturar10s(__unused repeating_timer *t){
     //=========================================================================================================
 
     //==========================================Leer y guardar AM2302==========================================
+
     if(esta_conectado(&AM23_handler)){
-        if(AM23_handler.flag_1){
-            am23.start_measurement();
-            AM23_handler.flag_1 = false;
-            am23.last_measurement.time_ms = safe_elapsed_ms_c1;
-        }else{
-            am23.read_measurement();
-            guardar_en_buffer(&AM23_handler, AM23_handler.am23_buffer, am23.last_measurement);
-            am23.start_measurement();
-            am23.last_measurement.time_ms = safe_elapsed_ms_c1;
-        }
+        am23.read_measurement();
+        guardar_en_buffer(&AM23_handler, AM23_handler.am23_buffer, am23.last_measurement);
+        am23.start_measurement();
+        am23.last_measurement.time_ms = safe_elapsed_ms_c1;
     }
     //=========================================================================================================
 
@@ -549,17 +530,16 @@ bool capturar10s(__unused repeating_timer *t){
 }
 
 int64_t get_ms5803(alarm_id_t id, __unused void *userdata){
-    if(MS5803_handler.flag_2){            // En este bloque se guarda la medicion de la presion
-        ms5803.read_measurement_press();    // Se lee la medicion de la presion          
-        MS5803_handler.flag_2 = false;    // Para la siguiente ocasion se medira temperatura
-        guardar_en_buffer(&MS5803_handler, MS5803_handler.ms58903_buffer, ms5803.last_measurement);
-        return 0;        // Desactiva la alarma
-    }
-    else{                                   // En este bloque se guarda la medicion de la temperatura
-        ms5803.read_measurement_temp();     // Se lee la medicion de la temperatura
-
-        ms5803.start_measurement_press();   // Se comienza la medicion de la presion
-        MS5803_handler.flag_2 = true;     // Se esta midiendo presion
-        return (ms5803.aquisition_time) * 1000;     // La alarma se activara en 10 ms de nuevo para guardar presion
+    switch(MS5803_handler.flag_1){
+        case true:// En este bloque se guarda la medicion de la presion
+            ms5803.read_measurement_press();    // Se lee la medicion de la presion          
+            MS5803_handler.flag_1 = false;    // Para la siguiente ocasion se medira temperatura
+            guardar_en_buffer(&MS5803_handler, MS5803_handler.ms58903_buffer, ms5803.last_measurement);
+            return 0;        // Desactiva la alarma
+        case false:// En este bloque se guarda la medicion de la temperatura
+            ms5803.read_measurement_temp();     // Se lee la medicion de la temperatura
+            ms5803.start_measurement_press();   // Se comienza la medicion de la presion
+            MS5803_handler.flag_1 = true;     // Se esta midiendo presion
+            return ms5803.aquisition_time * 1000;     // La alarma se activara en 10 ms de nuevo para guardar presion
     }
 }

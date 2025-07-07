@@ -14,14 +14,16 @@ bool AM2302::init_sensor(){
     AM2302_program_init(pio_, sm_, offset_, pin_);
     pio_sm_clear_fifos(pio_, sm_);
 
+    start_measurement();
     read_measurement(); // La primera lectura siempre es basura
     sleep_ms(2000);
+    start_measurement();
     read_measurement();
 
     // Se verifica si la informacion obtenida es correcta
     // Si lo es, lo mas probable es que el sensor este conectado correctamente
     if(this->last_measurement.st == OK){
-        printf("AM3202: Iniciado correctamente\n");
+        printf("AM2302: Iniciado correctamente\n");
         return true;
     }
     else{
@@ -30,9 +32,10 @@ bool AM2302::init_sensor(){
         for(int attemp = 1; attemp <= MAX_ATTEMPS; attemp++){
             printf("AM2302: No se pudo iniciar, intentando de nuevo: %u/%u\n", attemp, MAX_ATTEMPS);
             sleep_ms(2000);             // Delay minimo necesario entre lecturas
-            this->read_measurement();   // Se hace una nueva lectura
+            start_measurement();
+            read_measurement();   // Se hace una nueva lectura
             if(last_measurement.st == OK){
-                printf("AM3202: Iniciado correctamente al intento: %u\n", attemp);
+                printf("AM2302: Iniciado correctamente al intento: %u\n", attemp);
                 return true;
             }
         }
@@ -50,7 +53,7 @@ void AM2302::start_measurement(){
 
 AM2302::AM2302Data AM2302::read_measurement(){
     // Se obtiene la informacion del sensor
-    pio_sm_put(pio_, sm_, 7);
+    //pio_sm_put(pio_, sm_, 7);
     int32_t data = pio_sm_get(pio_, sm_);
     uint8_t byte1 = (data >> 24) & 0xFF;    // Primer byte
     uint8_t byte2 = (data >> 16) & 0xFF;    // Segundo byte

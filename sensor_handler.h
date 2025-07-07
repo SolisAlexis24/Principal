@@ -38,11 +38,7 @@ typedef struct {
         AM2302::AM2302Data am23_current;
         ISL29125::ISL29125Data isl_current;
     };
-    // Estas variables se deben de modificar manualmente por la falta del pin de interrupcion
-
-    bool flag_1; 
-    bool flag_2;
-
+    bool flag_1;    // Bandera de uso general
 } SensorHandler;
 
 // Variables globales para los sensores
