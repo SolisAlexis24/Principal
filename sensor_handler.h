@@ -13,54 +13,47 @@
 #define PIN_AM2302 6
 
 // Estructura que contiene los elementos que un sensor usa para funcionar
-typedef struct {
+template<typename T>
+struct SensorHandler {
     bool is_connected;      // Indica si el sensor esta conectado
     const char* filename;   // Nombre del archivo donde se guardan los datos
     FIL* file;              // Puntero al archivo donde se guardan los datos
     uint8_t buffer_head;    // Indices que indican donde se encuentra el buffer
     uint8_t buffer_tail;  
     bool buffer_full;       // Indica si el buffer esta lleno
-    volatile bool fire_measurement; // Indica si se debe de hacer una medicion
-    union { // Estructura que contiene el buffer de datos
-        LSM9DS1::LSM9DS1Data lsm_buffer[BUFFER_SIZE];
-        MLX90393::MLX90393Data mlx_buffer[BUFFER_SIZE];
-        MS5803::MS5803Data ms58903_buffer[BUFFER_SIZE];
-        VEML6030::VEML6030Data veml_buffer[BUFFER_SIZE];
-        AM2302::AM2302Data am23_buffer[BUFFER_SIZE];
-        ISL29125::ISL29125Data isl_buffer[BUFFER_SIZE];
-        
-    };
-    union {     // Estructura que contiene los datos de la ultima medicion
-        LSM9DS1::LSM9DS1Data lsm_current;
-        MLX90393::MLX90393Data mlx_current;
-        MS5803::MS5803Data ms5803_current;
-        VEML6030::VEML6030Data veml_current;
-        AM2302::AM2302Data am23_current;
-        ISL29125::ISL29125Data isl_current;
-    };
+    T buffer[BUFFER_SIZE];          // Buffer del tipo específico
+    T current;                      // Última medición del tipo específico
     bool flag_1;    // Bandera de uso general
-} SensorHandler;
+};
 
 // Variables globales para los sensores
-extern SensorHandler LSM_handler;
-extern SensorHandler MLX_mag_handler;
-extern SensorHandler MLX_temp_handler;
-extern SensorHandler MS5803_handler;
-extern SensorHandler VEML_handler;
-extern SensorHandler AM23_handler;
-extern SensorHandler ISL_handler;
+extern SensorHandler<LSM9DS1::LSM9DS1Data> LSM_handler;
+extern SensorHandler<MLX90393::MLX90393Data> MLX_mag_handler;
+extern SensorHandler<MLX90393::MLX90393Data> MLX_temp_handler;
+extern SensorHandler<MS5803::MS5803Data> MS5803_handler;
+extern SensorHandler<VEML6030::VEML6030Data> VEML_handler;
+extern SensorHandler<AM2302::AM2302Data> AM23_handler;
+extern SensorHandler<ISL29125::ISL29125Data> ISL_handler;
 
 /**
  * @brief Verifica si el sensor esta conectado
  * @param handler Puntero al SensorHandler que contiene la informacion del sensor
  */
-bool esta_conectado(SensorHandler* handler);
+template<typename T>
+bool esta_conectado(SensorHandler<T>* handler)
+{
+    return handler->is_connected;
+}
 
 /**
  * @brief Verifica si el buffer del sensor tiene elementos
  * @param handler Puntero al SensorHandler que contiene la informacion del sensor
  */
-bool buffer_tiene_elementos(SensorHandler* handler);
+template<typename T>
+bool buffer_tiene_elementos(SensorHandler<T>* handler)
+{
+    return handler->buffer_tail != handler->buffer_head || handler->buffer_full;
+}
 
 /**
  * @brief Hace parpadear el LED un número específico de veces
@@ -129,8 +122,8 @@ bool guardar_mediciones_ISL29125();
  * @param medicion Medicion a guardar
  */
 template<typename T>
-void guardar_en_buffer(SensorHandler* handler, T* buffer ,const T& medicion){
-    buffer[handler->buffer_head] = medicion;
+void guardar_en_buffer(SensorHandler<T>* handler, const T& medicion){
+    handler->buffer[handler->buffer_head] = medicion;
     handler->buffer_head = (handler->buffer_head + 1) % BUFFER_SIZE;
     handler->buffer_full = (handler->buffer_head == handler->buffer_tail);
 }
@@ -138,13 +131,11 @@ void guardar_en_buffer(SensorHandler* handler, T* buffer ,const T& medicion){
 /**
  * @brief Esta funcion actualiza el valor actual de la medicion del bufer
  * @param handler Manejador al cual se le haran los cambios
- * @param buffer Buffer de donde se extrae la informacion
- * @param current En donde se guardara la informacion del buffer
  */
 template <typename T>
-inline void actualizar_buffer(SensorHandler *handler, T *buffer, T& current){
+inline void actualizar_buffer(SensorHandler<T> *handler){
     uint32_t save = save_and_disable_interrupts();
-    current = buffer[handler->buffer_tail];
+    handler->current = handler->buffer[handler->buffer_tail];
     handler->buffer_tail = (handler->buffer_tail + 1) % BUFFER_SIZE;
     handler->buffer_full = false;
     restore_interrupts_from_disabled(save);

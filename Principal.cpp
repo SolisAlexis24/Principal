@@ -113,7 +113,7 @@ int main() {
     FIL C0_file, C1_file;
 
     //=================================================Manejadores de archivos=================================================
-    LSM_handler = (SensorHandler){
+    LSM_handler = (SensorHandler<LSM9DS1::LSM9DS1Data>){
         .is_connected = false,
         .filename = "LSM9DS1.csv",
         .file = &C0_file,
@@ -121,7 +121,7 @@ int main() {
         .buffer_tail = 0,
         .buffer_full = false
     };
-    MLX_mag_handler = (SensorHandler){
+    MLX_mag_handler = (SensorHandler<MLX90393::MLX90393Data>){
         .is_connected = false,
         .filename = "MLX90393_mag.csv",
         .file = &C0_file,
@@ -130,7 +130,7 @@ int main() {
         .buffer_full = false,
         .flag_1 = true,                     // Inidca si es la primera vez que se inicia lectura de magnetometro
     };
-    MLX_temp_handler = (SensorHandler){
+    MLX_temp_handler = (SensorHandler<MLX90393::MLX90393Data>){
         .is_connected = false,
         .filename = "MLX90393_temp.csv",
         .file = &C1_file,
@@ -138,7 +138,7 @@ int main() {
         .buffer_tail = 0,
         .buffer_full = false,
     };
-    MS5803_handler = (SensorHandler){
+    MS5803_handler = (SensorHandler<MS5803::MS5803Data>){
         .is_connected = false,
         .filename = "MS5803.csv",
         .file = &C1_file,
@@ -148,7 +148,7 @@ int main() {
         .flag_1 = false                  //Indica que variable se mando a medir en el ultimo comando
                                         // Si es 0, se mide temperatura, si es 1, se mide presion
     };
-    VEML_handler = (SensorHandler){
+    VEML_handler = (SensorHandler<VEML6030::VEML6030Data>){
         .is_connected = false,
         .filename = "VEML6030.csv",
         .file = &C1_file,
@@ -157,7 +157,7 @@ int main() {
         .buffer_full = false,
     };
 
-    AM23_handler = (SensorHandler){
+    AM23_handler = (SensorHandler<AM2302::AM2302Data>){
         .is_connected = false,
         .filename = "AM2302.csv",
         .file = &C1_file,
@@ -167,7 +167,7 @@ int main() {
         .flag_1 = true
     };
 
-    ISL_handler = (SensorHandler){
+    ISL_handler = (SensorHandler<ISL29125::ISL29125Data>){
         .is_connected = false,
         .filename = "ISL20125.csv",
         .file = &C1_file,
@@ -339,7 +339,7 @@ int main() {
 
         //=========================================================Guardar en SD LSM9DS1=========================================================
         if(esta_conectado(&LSM_handler) && buffer_tiene_elementos(&LSM_handler)){
-            actualizar_buffer(&LSM_handler, LSM_handler.lsm_buffer, LSM_handler.lsm_current);
+            actualizar_buffer(&LSM_handler);
             mutex_enter_blocking(&spi_mutex);
             if (!guardar_mediciones_LSM9DS1()) {
                 printf("Error al guardar mediciones LSM9DS1\n");
@@ -350,7 +350,7 @@ int main() {
 
         //=========================================================Guardar en SD MLX90393=========================================================
         if(esta_conectado(&MLX_mag_handler) && buffer_tiene_elementos(&MLX_mag_handler)){
-            actualizar_buffer(&MLX_mag_handler, MLX_mag_handler.mlx_buffer, MLX_mag_handler.mlx_current);
+            actualizar_buffer(&MLX_mag_handler);
             mutex_enter_blocking(&spi_mutex);
             if (!guardar_mediciones_mag_MLX90393()) {
                 printf("Error al guardar mediciones de magnetometro MLX90393\n");
@@ -395,14 +395,14 @@ bool capturar10ms(__unused repeating_timer *t)
         mutex_enter_blocking(&time_mutex);
         lsm.last_measurement.time_ms = safe_elapsed_ms_c0;
         mutex_exit(&time_mutex);
-        guardar_en_buffer(&LSM_handler, LSM_handler.lsm_buffer, lsm.last_measurement);  
+        guardar_en_buffer(&LSM_handler, lsm.last_measurement);  
     }
     //===========================================================================================
 
     //==================================Leer MLX90393 (guardar y leer magnetometro, termometro solo leer)==================================
     if(esta_conectado(&MLX_mag_handler)){
         mlx.read_measurement_mt();
-        guardar_en_buffer(&MLX_mag_handler, MLX_mag_handler.mlx_buffer, mlx.last_measurement);
+        guardar_en_buffer(&MLX_mag_handler, mlx.last_measurement);
         mlx.begin_measurement_mt();     
         mlx.last_measurement.time_ms = safe_elapsed_ms_c0;
     }
@@ -420,7 +420,7 @@ void core1_main() {
         //=========================================================Guardar en SD MLX90393=========================================================
 
        if(esta_conectado(&MLX_temp_handler) && buffer_tiene_elementos(&MLX_temp_handler)){
-            actualizar_buffer(&MLX_temp_handler, MLX_temp_handler.mlx_buffer, MLX_temp_handler.mlx_current);
+            actualizar_buffer(&MLX_temp_handler);
             mutex_enter_blocking(&spi_mutex);
             if (!guardar_mediciones_temp_MLX90393()) {
                 printf("Error al guardar mediciones de temperatura MLX90393\n");
@@ -431,7 +431,7 @@ void core1_main() {
 
         //=========================================================Guardar en SD MS803=========================================================
         if(esta_conectado(&MS5803_handler) && buffer_tiene_elementos(&MS5803_handler)){
-            actualizar_buffer(&MS5803_handler, MS5803_handler.ms58903_buffer, MS5803_handler.ms5803_current);
+            actualizar_buffer(&MS5803_handler);
             mutex_enter_blocking(&spi_mutex);
             if(!guardar_mediciones_MS5003()){
                 printf("Error al guardar mediciones de temperatura MS5803\n");
@@ -442,7 +442,7 @@ void core1_main() {
 
         //=========================================================Guardar en SD VEML6030=========================================================
         if(esta_conectado(&VEML_handler) && buffer_tiene_elementos(&VEML_handler)){
-            actualizar_buffer(&VEML_handler, VEML_handler.veml_buffer, VEML_handler.veml_current);
+            actualizar_buffer(&VEML_handler);
             mutex_enter_blocking(&spi_mutex);
             if(!guardar_mediciones_VEML6030()){
                 printf("Error al guardar mediciones luminicas\n");
@@ -453,7 +453,7 @@ void core1_main() {
 
         //=========================================================Guardar en SD AM2302=========================================================
         if(esta_conectado(&AM23_handler) && buffer_tiene_elementos(&AM23_handler)){
-            actualizar_buffer(&AM23_handler, AM23_handler.am23_buffer, AM23_handler.am23_current);
+            actualizar_buffer(&AM23_handler);
             mutex_enter_blocking(&spi_mutex);
             if(!guardar_mediciones_AM2302()){
                 printf("Error al guardar mediciones AM2302\n");
@@ -464,7 +464,7 @@ void core1_main() {
 
         //=========================================================Guardar en SD ISL29125=========================================================
         if(esta_conectado(&ISL_handler) && buffer_tiene_elementos(&ISL_handler)){
-            actualizar_buffer(&ISL_handler, ISL_handler.isl_buffer, ISL_handler.isl_current);
+            actualizar_buffer(&ISL_handler);
             mutex_enter_blocking(&spi_mutex);
             if(!guardar_mediciones_ISL29125()){
                 printf("Error al guardar mediciones ISL29125\n");
@@ -486,7 +486,7 @@ bool capturar10s(__unused repeating_timer *t){
 
     //=====================================Guardar MLX90393 (temperatura)=====================================
     if(esta_conectado(&MLX_temp_handler)){
-        guardar_en_buffer(&MLX_temp_handler, MLX_temp_handler.mlx_buffer, mlx.last_measurement);
+        guardar_en_buffer(&MLX_temp_handler, mlx.last_measurement);
     }
     //========================================================================================================
 
@@ -504,7 +504,7 @@ bool capturar10s(__unused repeating_timer *t){
         veml.read_ambient();
         veml.read_white();
         veml.last_measurement.time_ms = safe_elapsed_ms_c1;
-        guardar_en_buffer(&VEML_handler, VEML_handler.veml_buffer, veml.last_measurement);
+        guardar_en_buffer(&VEML_handler, veml.last_measurement);
     }
     //=========================================================================================================
 
@@ -512,7 +512,7 @@ bool capturar10s(__unused repeating_timer *t){
 
     if(esta_conectado(&AM23_handler)){
         am23.read_measurement();
-        guardar_en_buffer(&AM23_handler, AM23_handler.am23_buffer, am23.last_measurement);
+        guardar_en_buffer(&AM23_handler, am23.last_measurement);
         am23.start_measurement();
         am23.last_measurement.time_ms = safe_elapsed_ms_c1;
     }
@@ -522,7 +522,7 @@ bool capturar10s(__unused repeating_timer *t){
     if(esta_conectado(&ISL_handler)){
         isl.read_data();
         isl.last_measurement.time_ms = safe_elapsed_ms_c1;
-        guardar_en_buffer(&ISL_handler,ISL_handler.isl_buffer,isl.last_measurement);
+        guardar_en_buffer(&ISL_handler, isl.last_measurement);
     }
     //=========================================================================================================
 
@@ -534,7 +534,7 @@ int64_t get_ms5803(alarm_id_t id, __unused void *userdata){
         case true:// En este bloque se guarda la medicion de la presion
             ms5803.read_measurement_press();    // Se lee la medicion de la presion          
             MS5803_handler.flag_1 = false;    // Para la siguiente ocasion se medira temperatura
-            guardar_en_buffer(&MS5803_handler, MS5803_handler.ms58903_buffer, ms5803.last_measurement);
+            guardar_en_buffer(&MS5803_handler, ms5803.last_measurement);
             return 0;        // Desactiva la alarma
         case false:// En este bloque se guarda la medicion de la temperatura
             ms5803.read_measurement_temp();     // Se lee la medicion de la temperatura
