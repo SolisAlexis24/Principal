@@ -127,8 +127,8 @@ public:
     // Tiempo de adquision aproximado para recabar las
     // Mediciones despues de solicitarla al sensor
     // Necesarias por la ausencia de pin de interrupcion
-    uint16_t aquisition_time_mag = 0.0f;
-    uint16_t aquisition_time_temp = 0.0f;
+    uint16_t acquisition_time_mag = 0.0f;
+    uint16_t acquisition_time_temp = 0.0f;
 
     MLX90393Data last_measurement;      // Variable que ayuda a guardar los datos de la ultima medicion
 
@@ -194,13 +194,13 @@ private:
      * @return uint16_t Tiempo en microsegundos que se tarda en hacer una medicion
      * @example Para un DIG_FILT y OSR de 0, la medicion tardaria 1357 us
      */
-    uint16_t calculate_aquisition_time_mag_us(DIG_FILT filt, OSR osr);
+    uint16_t calculate_acquisition_time_mag_us(DIG_FILT filt, OSR osr);
 
     /**
      * @brief Calcula el tiempo de adquision para el modo de medicion unica del termometro  (+30% de olgura)
      * @param osr2 OSR asignado por el usuario
      * @return uint16_t Tiempo en microsegundos que se tarda en hacer una medicion
      */
-    uint16_t calculate_aquisition_time_temp_us(OSR osr2);
+    uint16_t calculate_acquisition_time_temp_us(OSR osr2);
 
 };

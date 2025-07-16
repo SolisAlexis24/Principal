@@ -39,10 +39,10 @@ bool MS5803::init_sensor(TemperatureOSR t_osr, PressureOSR p_osr, Address add){
 
     //printf("C1: %hu\nC2: %hu\nC3: %hu\nC4: %hu\nC5: %hu\nC6: %hu\n", C1, C2, C3, C4, C5, C6);
 
-    aquisition_time = calculate_aquisition_time_ms(t_osr, p_osr);
+    acquisition_time = calculate_acquisition_time_ms(t_osr, p_osr);
 
     printf("MS5803-14BA: Inicializado correctamente.\n");
-    //printf("Tiempo de activacion maximo: %u ms \n", aquisition_time);
+    //printf("Tiempo de activacion maximo: %u ms \n", acquisition_time);
 
     return true;
 }
@@ -192,7 +192,7 @@ uint16_t MS5803::read_from_prom(uint8_t reg) {
     return (read_buf[0] << 8) | read_buf[1];
 }
 
-uint8_t MS5803::calculate_aquisition_time_ms(TemperatureOSR t_osr, PressureOSR p_osr){
+uint8_t MS5803::calculate_acquisition_time_ms(TemperatureOSR t_osr, PressureOSR p_osr){
     int8_t t_time, p_time;
     switch (t_osr){
     case T_OSR_256: t_time = 1; break;

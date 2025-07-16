@@ -128,7 +128,7 @@ public:
 
     MS5803Data last_measurement;        // Inmformacion de la ultima medicion realizada
 
-    uint8_t aquisition_time;            // Tiempo de adquisicion maximo para la medicion
+    uint8_t acquisition_time;            // Tiempo de adquisicion maximo para la medicion
 
 
 
@@ -217,6 +217,6 @@ private:
      * @param t_osr Precision de temperatura
      * @param p_osr Precision de presion
     */
-    uint8_t calculate_aquisition_time_ms(TemperatureOSR t_osr, PressureOSR p_osr);
+    uint8_t calculate_acquisition_time_ms(TemperatureOSR t_osr, PressureOSR p_osr);
 
 };

@@ -128,7 +128,6 @@ int main() {
         .buffer_head = 0,
         .buffer_tail = 0,
         .buffer_full = false,
-        .flag_1 = true,                     // Inidca si es la primera vez que se inicia lectura de magnetometro
     };
     MLX_temp_handler = (SensorHandler<MLX90393::MLX90393Data>){
         .is_connected = false,
@@ -164,7 +163,6 @@ int main() {
         .buffer_head = 0,
         .buffer_tail = 0,
         .buffer_full = false,
-        .flag_1 = true
     };
 
     ISL_handler = (SensorHandler<ISL29125::ISL29125Data>){
@@ -254,7 +252,7 @@ int main() {
         }
         MS5803_handler.is_connected = true;
         ms5803.start_measurement_temp();
-        add_alarm_in_ms(ms5803.aquisition_time, get_ms5803, NULL, false);         // Se lanza la alarma para guardar medicion de temperatura
+        add_alarm_in_ms(ms5803.acquisition_time, get_ms5803, NULL, false);         // Se lanza la alarma para guardar medicion de temperatura
         MS5803_handler.flag_1 = false;                                              // Se indica que se esta midiendo la temperatura
 
     }
@@ -495,7 +493,7 @@ bool capturar10s(__unused repeating_timer *t){
         ms5803.start_measurement_temp();                                        // Se esta midiendo temperatura
         MS5803_handler.flag_1 = false;                                          // Se indica que se esta midiendo temperatura
         ms5803.last_measurement.time_ms = safe_elapsed_ms_c1;    
-        add_alarm_in_ms(ms5803.aquisition_time, get_ms5803, NULL, false);      // Se lanza la alarma para guardar medicion de temperatura
+        add_alarm_in_ms(ms5803.acquisition_time, get_ms5803, NULL, false);      // Se lanza la alarma para guardar medicion de temperatura
     }
     //=========================================================================================================
 
@@ -540,6 +538,6 @@ int64_t get_ms5803(alarm_id_t id, __unused void *userdata){
             ms5803.read_measurement_temp();     // Se lee la medicion de la temperatura
             ms5803.start_measurement_press();   // Se comienza la medicion de la presion
             MS5803_handler.flag_1 = true;     // Se esta midiendo presion
-            return ms5803.aquisition_time * 1000;     // La alarma se activara en 10 ms de nuevo para guardar presion
+            return ms5803.acquisition_time * 1000;     // La alarma se activara en 10 ms de nuevo para guardar presion
     }
 }

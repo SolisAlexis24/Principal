@@ -24,8 +24,8 @@ bool MLX90393::init_sensor(uint16_t offset_x, uint16_t offset_y, uint16_t offset
     write_register(0x05, offset_y); // Configura el offset en X
     write_register(0x06, offset_z); // Configura el offset en X
 
-    aquisition_time_mag = calculate_aquisition_time_mag_us(filt, osr);
-    aquisition_time_temp = calculate_aquisition_time_temp_us(osr2);
+    acquisition_time_mag = calculate_acquisition_time_mag_us(filt, osr);
+    acquisition_time_temp = calculate_acquisition_time_temp_us(osr2);
 
     res_x_ = res_x;
     res_y_ = res_y;
@@ -43,8 +43,8 @@ bool MLX90393::init_sensor(uint16_t offset_x, uint16_t offset_y, uint16_t offset
 
     write_register(0x00, new_data); // Se escribe el nuevo registro
 
-    //printf("MLX90393 inicializado. Tiempo de adquisición mag : %u us\n", this->aquisition_time_mag);
-    //printf("MLX90393 inicializado. Tiempo de adquisición temp : %u us\n", this->aquisition_time_temp);
+    //printf("MLX90393 inicializado. Tiempo de adquisición mag : %u us\n", this->acquisition_time_mag);
+    //printf("MLX90393 inicializado. Tiempo de adquisición temp : %u us\n", this->acquisition_time_temp);
     printf("MLX90393: Sensor inicializado correctamente.\n");
 
     return true;
@@ -321,11 +321,11 @@ void MLX90393::write_register(uint8_t reg, uint16_t val){
 
 }
 
-uint16_t MLX90393::calculate_aquisition_time_mag_us(DIG_FILT filt, OSR osr) {
+uint16_t MLX90393::calculate_acquisition_time_mag_us(DIG_FILT filt, OSR osr) {
     return (264 + 432 + 3 * (67 + 64 * pow(2, (int)osr) * (2 + pow(2, (int)filt))))*1.3;
 }
 
-uint16_t MLX90393::calculate_aquisition_time_temp_us(OSR osr2){
+uint16_t MLX90393::calculate_acquisition_time_temp_us(OSR osr2){
     return (67 + 192 * pow(2, (int)osr2))*1.3;
 }
 
